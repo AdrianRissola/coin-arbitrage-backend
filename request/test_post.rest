@@ -1,0 +1,5 @@
+POST http://localhost:3001/api/
+
+{
+    "content": "esto es un test"
+}
