@@ -63,6 +63,7 @@ app.get('/coin-arbitrage/crypto/current-arbitrages', (request, response) => {
 })
 
 app.get('/coin-arbitrage/crypto/historical-arbitrages', (request, response) => {
+    console.log("finding all stored arbitrage: ")
     Arbitrage.find()
     .then(result=>{
         console.log("findAll: ", result)
