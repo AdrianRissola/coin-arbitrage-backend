@@ -1,5 +1,6 @@
 require('dotenv').config()
 const mongoose = require('mongoose')
+const {model} = mongoose
 
 const connectionMngoDB = process.env.MONGO_DB_URI
 
@@ -11,7 +12,30 @@ mongoose.connect(connectionMngoDB)
         console.error(err)
     })
 
+const marketSchema = new mongoose.Schema({
+    name: String,
+    type : String,
+    baseUrl: String, 
+    tickers : [String]
+})
 
+//const Market = model('Market', marketSchema)
+// const bitfinex = new Market(
+//     {
+//         name : "Bitfinex",
+//         type : "Exchange with order book",
+//         baseUrl : "https://api-pub.bitfinex.com/v2/",
+//         tickers: ["tBTCUSD"]
+//     }
+// )
+// bitfinex.save()
+//     .then(result=>{
+//         console.log(result)
+//         mongoose.connection.close
+//     })
+//     .catch(err=>{
+//         console.error(err)
+//     })
 
 // const arbitrageTest = new Arbitrage(
 //     {

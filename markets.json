@@ -1,0 +1,55 @@
+{
+    name : "Bitfinex",
+    type : "Exchange with order book",
+    baseUrl : "https://api-pub.bitfinex.com/v2/",
+    tickers: ["tBTCUSD"]
+}
+
+{
+    name : "Binance",
+    type : "Exchange with order book",
+    baseUrl : "https://api.binance.com/api/v3/ticker/price?symbol=",
+    tickers: ["BTCUSDT"]
+}
+
+{
+    name : "Coinbase",
+    type : "Exchange with order book",
+    baseUrl : "https://api.coinbase.com/v2/prices/${ticker}/buy",
+    tickers: ["BTC-USD"]
+}
+
+{
+    name : "Bittrex",
+    type : "Exchange with order book",
+    baseUrl : "https://api.bittrex.com/v3/markets/${ticker}/ticker",
+    tickers: ["BTC-USDT"]
+}
+
+{
+    name : "Poloniex",
+    type : "Exchange with order book",
+    baseUrl : "https://poloniex.com/public?command=returnTicker",
+    tickers: ["BTC-USDT"]
+}
+
+{
+    name : "Kraken",
+    type : "Exchange with order book",
+    baseUrl : "https://api.kraken.com/0/public/Ticker?pair=${ticker}",
+    tickers: ["XBTUSD"]
+}
+
+{
+    name : "Okex",
+    type : "Exchange with order book",
+    baseUrl : "https://www.okex.com/api/v5/market/ticker?instId=${ticker}-SWAP",
+    tickers: ["BTC-USDT"]
+}
+
+{
+    name : "Bitmex",
+    type : "Exchange with order book",
+    baseUrl : "https://www.bitmex.com/api/v1/trade?symbol=${ticker}&count=1&reverse=true",
+    tickers: ["xbtusd"]
+}

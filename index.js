@@ -3,8 +3,11 @@ require('./mongo')
 const express = require('express')
 const app = express()
 const logger = require('./loggerMiddleware')
+const marketService = require('./service/marketService')
 const cors = require('cors')
 const Arbitrage = require('./model/Arbitrage')
+const Market = require('./model/Market')
+
 const arbitrageService = require('./service/arbitrageService')
 
 
@@ -21,16 +24,25 @@ app.get('/', (request, response) => {
             '<tr>'+
                 '<td><strong>Method</strong></td>'+
                 '<td><strong>Endpoint</strong></td>'+
-                '<td><strong>descriptcion</strong></td>'+
+                '<td><strong>Query params</strong></td>'+
+                '<td><strong>Description</strong></td>'+
+            '</tr>'+
+            '<tr>'+
+                '<td>GET</td>'+   
+                '<td>/coin-arbitrage/crypto/markets</td>'+
+                '<td style=\'text-align:center\'>-</td>'+
+                '<td>Show all available markets</td>'+
             '</tr>'+
             '<tr>'+
                 '<td>GET</td>'+   
                 '<td>/coin-arbitrage/crypto/current-arbitrages</td>'+
+                '<td style=\'text-align:center\'>markets=binance,coinbase (optional) <br> top=5 (optional)</td>'+
                 '<td>Show all possible current arbitrages for available markets ordered by best opportunities</td>'+
             '</tr>'+
             '<tr>'+
                 '<td>GET</td>'+
                 '<td>/coin-arbitrage/crypto/historical-arbitrages</td>'+
+                '<td style=\'text-align:center\'>-</td>'+
                 '<td>Show all historical stored arbitrages</td>'+
             '</tr>'+
         '</table>'
@@ -51,9 +63,27 @@ app.post('/api/', (request, response) => {
     response.json(newRequest)
 })
 
+app.get('/coin-arbitrage/crypto/markets', (request, response) => {
+    marketService.getAllMarkets()
+    .then(markets => {
+        console.log("markets: ", markets)
+        response.json(markets)
+    })
+    .catch(err=>{
+        console.error(err)
+    })
+})
+
 app.get('/coin-arbitrage/crypto/current-arbitrages', (request, response) => {
-    arbitrageService.getArbitrages()
+    console.log("request.query.markets: ", request.query.markets)
+    let markets = null
+    if(!!request.query.markets)
+        markets = request.query.markets.split(",")
+    arbitrageService.getArbitrages(markets)
     .then(result=>{
+        let top = parseInt(request.query.top)
+        if(top && top>0 && top<=result.length)
+            result = result.slice(0, parseInt(request.query.top))
         console.log("arbitrageService.getArbitrages(): ", result)
         response.json(result)
     })

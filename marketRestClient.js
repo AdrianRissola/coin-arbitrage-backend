@@ -1,4 +1,7 @@
 const axios = require('axios');
+const Market = require('./model/Market')
+
+
 
 const getBitfinexPriceBTCUSD = async () => {
     result = await axios.get('https://api-pub.bitfinex.com/v2/ticker/tBTCUSD')
@@ -11,7 +14,6 @@ const getBitfinexPriceBTCUSD = async () => {
     bitfinexPrice.price = Number(bitfinexPrice.price)
     return bitfinexPrice
 }
-
 
 const getBinancePriceBTCUSDT = async () => {
     result = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')

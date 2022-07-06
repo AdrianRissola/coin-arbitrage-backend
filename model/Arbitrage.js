@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const {model, Schema} = mongoose
+const {model} = mongoose
 const {transactionSchema} = require('./Transaction')
 
 const userSchema = new mongoose.Schema({
