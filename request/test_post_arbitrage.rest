@@ -1,0 +1,21 @@
+POST http://localhost:3001/coin-arbitrage/crypto/arbitrage 
+Content-Type: application/json
+
+{
+    "transactions" : [{
+        "type": "BUY",
+        "market" : "bitfinex",
+        "pair" : "BTCUSDT",
+        "price" : 20000.0
+    },
+    {
+        "type": "SELL",
+        "market" : "coinbase",
+        "pair" : "BTCUSDT",
+        "price" : 21000.0
+    }],
+    "user" : {
+        "name" : "satoshi"
+    },
+    "date" : "Mon, 04 Jul 2022 21:33:03 GMT"
+}
