@@ -3,7 +3,7 @@ const marketsDBmanager = require('./marketsDBmanager')
 const constants = require('./tickerConverter')
 const marketRestClientResultHandler = require('./marketRestClientResultHandler')
 
-const getMarketPriceBTCUSD = async (marketName, marketTicker) => {
+const getMarketPrice = async (marketName, marketTicker) => {
     let market = marketsDBmanager.getMarketByName(marketName)
     console.log("requesting market: ", market, ' with ticker: ', marketTicker)
     let url = market.baseUrl.replace('${ticker}', marketTicker)
@@ -130,5 +130,5 @@ module.exports = {
     // getKrakenPriceBTCUSD,
     // getOkexPriceBTCUSDT,
     // getBitmexPriceBTCUSDT,
-    getMarketPriceBTCUSD
+    getMarketPrice
 };

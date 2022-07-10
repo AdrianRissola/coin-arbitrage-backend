@@ -10,7 +10,7 @@ exports.setMarketsFromDB = (markets) => {
 
 const getMarketByName = (name) => {
     let marketFound = null
-    for(i=0 ; i<marketsFromDB.length ; i++){
+    for(let i=0 ; i<marketsFromDB.length ; i++){
         if(marketsFromDB[i].name.toUpperCase()===name.toUpperCase()) {
             marketFound = marketsFromDB[i]
             break
@@ -18,6 +18,16 @@ const getMarketByName = (name) => {
     }
     return marketFound
 }
+
+exports.getMarketsByNames = (names) => {
+    let markets = []
+    for(let i=0 ; i<names.length ; i++){
+        let foundMarket = getMarketByName(names[i])
+        if (!!foundMarket)
+            markets.push(foundMarket)
+    }
+    return markets;
+} 
 
 exports.getMarketByName = (name) => {
     if(!marketsFromDB) {

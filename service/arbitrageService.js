@@ -4,7 +4,7 @@ const constants = require('../tickerConverter')
 
 
 const marketToPrice = {
-    BITFINEX: async ()=>{return await platforms.getMarketPriceBTCUSD('bitfinex')},
+    BITFINEX: async ()=>{return await platforms.getMarketPrice('bitfinex')},
     BINANCE: async ()=>{return await platforms.getBinancePriceBTCUSDT()},
     COINBASE: async ()=>{return await platforms.getCoinbasePriceBTCUSD()},
     BITTREX: async ()=>{return await platforms.getBittrexPriceBTCUSDT()},
@@ -15,41 +15,25 @@ const marketToPrice = {
 }
 
 
-const getArbitrages = async (markets, ticker) => {
-    console.log("ticker: ", ticker)
-    let list = []
-    if(!markets) {
-        let allMarkets = marketsDBmanager.getAllMarkets()
-        console.log("allMarkets.length: ", allMarkets.length)
-        for(i=0 ; i<allMarkets.length ; i++) {
-            let marketTicker = constants.MARKET_TO_TICKER[allMarkets[i].name.toUpperCase()][ticker.toUpperCase()]
-            if(!!marketTicker) {
-                console.log(allMarkets[i].name, ' ', ticker, ' ', marketTicker)
-                list.push(await platforms.getMarketPriceBTCUSD(allMarkets[i].name, marketTicker))
-            }
-        }
-            
+const getArbitrages = async (marketNames, ticker) => {
+    
+    let marketPrices = []
+    let markets = []
+    
+    if(!marketNames)
+        markets = marketsDBmanager.getAllMarkets()
+    else    
+        markets = marketsDBmanager.getMarketsByNames(marketNames)
         
-        // list = [
-        //     await platforms.getMarketPriceBTCUSD('bitfinex'),
-        //     await platforms.getBinancePriceBTCUSDT(),
-        //     await platforms.getCoinbasePriceBTCUSD(),
-        //     await platforms.getBittrexPriceBTCUSDT(),
-        //     await platforms.getPoloniexPriceBTCUSDT(),
-        //     await platforms.getKrakenPriceBTCUSD(),
-        //     await platforms.getOkexPriceBTCUSDT(),
-        //     await platforms.getBitmexPriceBTCUSDT()
-        // ]
-    }
-        
-    else {
-        for(i=0 ; i<markets.length ; i++) {
-            let marketPrice = await marketToPrice[markets[i].toUpperCase()]()
-            list.push(marketPrice)
+    for(i=0 ; i<markets.length ; i++) {
+        let marketTicker = constants.MARKET_TO_TICKER[markets[i].name.toUpperCase()][ticker.toUpperCase()]
+        if(!!marketTicker) {
+            console.log('retrieveing: ', markets[i].name, ' ', ticker, ' ', marketTicker)
+            marketPrices.push(await platforms.getMarketPrice(markets[i].name, marketTicker))
         }
     }
 
-    let sortedList = list.sort((e1, e2) => e1.price-e2.price)
+    let sortedList = marketPrices.sort((e1, e2) => e1.price-e2.price)
     console.log("sorted list: ", sortedList)
 
     let arbitrages = []
