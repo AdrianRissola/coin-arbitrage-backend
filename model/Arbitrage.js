@@ -1,6 +1,12 @@
 const mongoose = require('mongoose')
 const {model} = mongoose
-const {transactionSchema} = require('./Transaction')
+
+const transactionSchema = new mongoose.Schema({
+    type: String,         // BUY or SELL
+    market : String,
+    pair : String,
+    price : Number
+})
 
 const userSchema = new mongoose.Schema({
     name : String

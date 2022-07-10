@@ -1,65 +1,54 @@
 const platforms = require('../marketRestClient')
+const marketsDBmanager = require('../marketsDBmanager')
+const constants = require('../tickerConverter')
 
 
-const getPriceByMarket = async (market) => {
-    let marketPrice = undefined
-    switch (market) {
-        case 'BITFINEX':
-            marketPrice = await platforms.getBitfinexPriceBTCUSD()
-            break;
-        case 'BINANCE':
-            marketPrice = await platforms.getBinancePriceBTCUSDT()
-            break;
-        case 'COINBASE':
-            marketPrice = await platforms.getCoinbasePriceBTCUSD()
-            break;
-        case 'BITTREX':
-            marketPrice = await platforms.getBittrexPriceBTCUSDT()
-            break;
-        case 'POLONIEX':
-            marketPrice = await platforms.getPoloniexPriceBTCUSDT()
-            break;
-        case 'KRAKEN':
-            marketPrice = await platforms.getKrakenPriceBTCUSD()
-            break;
-        case 'OKEX':
-            marketPrice = await platforms.getOkexPriceBTCUSDT()
-            break;
-        case 'BITMEX':
-            marketPrice = await platforms.getBitmexPriceBTCUSDT()
-            break;
-        default:
-            marketPrice = null
-    }
-    return marketPrice;
+const marketToPrice = {
+    BITFINEX: async ()=>{return await platforms.getMarketPriceBTCUSD('bitfinex')},
+    BINANCE: async ()=>{return await platforms.getBinancePriceBTCUSDT()},
+    COINBASE: async ()=>{return await platforms.getCoinbasePriceBTCUSD()},
+    BITTREX: async ()=>{return await platforms.getBittrexPriceBTCUSDT()},
+    POLONIEX: async ()=>{return await platforms.getPoloniexPriceBTCUSDT()},
+    KRAKEN: async ()=>{return await platforms.getKrakenPriceBTCUSD()},
+    OKEX: async ()=>{return await platforms.getOkexPriceBTCUSDT()},
+    BITMEX: async ()=>{return await platforms.getBitmexPriceBTCUSDT()}
 }
 
-const getArbitrages = async (markets) => {
+
+const getArbitrages = async (markets, ticker) => {
+    console.log("ticker: ", ticker)
     let list = []
-    if(!markets)
-        list = [
-            await platforms.getBitfinexPriceBTCUSD(),
-            await platforms.getBinancePriceBTCUSDT(),
-            await platforms.getCoinbasePriceBTCUSD(),
-            await platforms.getBittrexPriceBTCUSDT(),
-            await platforms.getPoloniexPriceBTCUSDT(),
-            await platforms.getKrakenPriceBTCUSD(),
-            await platforms.getOkexPriceBTCUSDT(),
-            await platforms.getBitmexPriceBTCUSDT()
-        ]
+    if(!markets) {
+        let allMarkets = marketsDBmanager.getAllMarkets()
+        console.log("allMarkets.length: ", allMarkets.length)
+        for(i=0 ; i<allMarkets.length ; i++) {
+            let marketTicker = constants.MARKET_TO_TICKER[allMarkets[i].name.toUpperCase()][ticker.toUpperCase()]
+            if(!!marketTicker) {
+                console.log(allMarkets[i].name, ' ', ticker, ' ', marketTicker)
+                list.push(await platforms.getMarketPriceBTCUSD(allMarkets[i].name, marketTicker))
+            }
+        }
+            
+        
+        // list = [
+        //     await platforms.getMarketPriceBTCUSD('bitfinex'),
+        //     await platforms.getBinancePriceBTCUSDT(),
+        //     await platforms.getCoinbasePriceBTCUSD(),
+        //     await platforms.getBittrexPriceBTCUSDT(),
+        //     await platforms.getPoloniexPriceBTCUSDT(),
+        //     await platforms.getKrakenPriceBTCUSD(),
+        //     await platforms.getOkexPriceBTCUSDT(),
+        //     await platforms.getBitmexPriceBTCUSDT()
+        // ]
+    }
+        
     else {
-        // await markets.map(async market=> {
-        //     let marketPrice = await getPriceByMarket(market.toUpperCase())
-        //     list.push(marketPrice)
-        //     console.log("markets to calculate arbitrages: ", list)
-        // })
         for(i=0 ; i<markets.length ; i++) {
-            let marketPrice = await getPriceByMarket(markets[i].toUpperCase())
+            let marketPrice = await marketToPrice[markets[i].toUpperCase()]()
             list.push(marketPrice)
         }
     }
 
-    console.log("markets to calculate arbitrages: ", list)
     let sortedList = list.sort((e1, e2) => e1.price-e2.price)
     console.log("sorted list: ", sortedList)
 

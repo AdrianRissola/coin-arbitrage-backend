@@ -1,23 +1,36 @@
 require('dotenv').config()
 const mongoose = require('mongoose')
-const {model} = mongoose
-
+const Market = require('./model/Market')
+const marketsDBmanager = require('./marketsDBmanager')
+const AvailableTicker = require('./model/AvailableTicker')
 const connectionMngoDB = process.env.MONGO_DB_URI
 
 mongoose.connect(connectionMngoDB)
     .then(()=>{
         console.log('database conected')
+        Market.find({})
+        .then(result => {
+            console.log("markets from db: ", result)
+            marketsDBmanager.setMarketsFromDB(result)
+            mongoose.connection.close
+        })
+        AvailableTicker.find({})
+        .then(result => {
+            console.log("Available Tickers from db: ", result)
+            marketsDBmanager.setAvailableTickers(result)
+            mongoose.connection.close
+        })
     })
     .catch(err=>{
         console.error(err)
     })
 
-const marketSchema = new mongoose.Schema({
-    name: String,
-    type : String,
-    baseUrl: String, 
-    tickers : [String]
-})
+
+
+// loadedMarkets.loadMarkets.then(response=> {
+//     console.log("from mongo.js: ", loadedMarkets.getMarket('bifinex'))
+// })
+
 
 //const Market = model('Market', marketSchema)
 // const bitfinex = new Market(

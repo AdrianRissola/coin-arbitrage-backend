@@ -1,22 +1,31 @@
 const Market = require('../model/Market')
+const marketsDBmanager = require('../marketsDBmanager')
 
 
 
 
 const getAllMarkets = async () => {
-    let markets = await Market.find()
-    .then(markets=>{
-        for(i=0 ; i<markets.length ; i++){
-            for(j=0 ; j<markets[i].tickers.length ; j++){
-                markets[i].tickers[j] = tickerConverter(markets[i].tickers[j])
-            }
+
+    let markets = marketsDBmanager.getAllMarkets()
+    for(i=0 ; i<markets.length ; i++){
+        for(j=0 ; j<markets[i].tickers.length ; j++){
+            markets[i].tickers[j] = tickerConverter(markets[i].tickers[j])
         }
-        console.log("findAll dto markets: ", markets)
-        return markets
-    })
-    .catch(err=>{
-        console.error(err)
-    })
+    }
+
+    // let markets = await Market.find()
+    // .then(markets=>{
+    //     for(i=0 ; i<markets.length ; i++){
+    //         for(j=0 ; j<markets[i].tickers.length ; j++){
+    //             markets[i].tickers[j] = tickerConverter(markets[i].tickers[j])
+    //         }
+    //     }
+    //     console.log("findAll dto markets: ", markets)
+    //     return markets
+    // })
+    // .catch(err=>{
+    //     console.error(err)
+    // })
     return markets
 }
 
