@@ -2,6 +2,7 @@ const marketService = require('../service/marketService')
 const arbitrageService = require('../service/arbitrageService')
 const Arbitrage = require('../model/Arbitrage')
 const marketsDBmanager = require('../marketsDBmanager')
+const tickerConverter = require('../tickerConverter')
 
 
 
@@ -20,9 +21,27 @@ exports.getAllTickers = (request, response) => {
     response.json(marketsDBmanager.getAllAvailableTickers())
 }
 
+exports.getTickerByMarket = (request, response, next) => {
+    console.log("request.params.market: ", request.params.market)
+    console.log("request.params.ticker: ", request.params.ticker)
+    let marketTicker = tickerConverter.MARKET_TO_TICKER[request.params.market.toUpperCase()][request.params.ticker.toUpperCase()]
+    if(!!marketTicker) {
+        marketService.getTickerByMarket(request.params.market, request.params.ticker).then(
+            result => {
+                console.log("ticker: ", result)
+                response.json(result)
+            }
+        )
+    } else {
+        next()
+    }
+}
+
 exports.getArbitrages = (request, response, next) => {
     console.log("request.query.markets: ", request.query.markets)
     console.log("request.query.ticker: ", request.query.ticker)
+    console.log("request.query.minProfitPercentage: ", request.query.minProfitPercentage)
+    console.log("request.query.top: ", request.query.top)
     let markets = null
     if(!!request.query.markets) {
         markets = request.query.markets.split(",")
@@ -31,7 +50,7 @@ exports.getArbitrages = (request, response, next) => {
     }
     if(!request.query.ticker)
         next()
-    arbitrageService.getArbitrages(markets, request.query.ticker)
+    arbitrageService.getArbitrages(markets, request.query.ticker, Number(request.query.minProfitPercentage))
     .then(result=>{
         let top = parseInt(request.query.top)
         if(top && top>0 && top<=result.length)

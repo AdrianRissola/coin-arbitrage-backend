@@ -1,50 +1,33 @@
-const Market = require('../model/Market')
 const marketsDBmanager = require('../marketsDBmanager')
-
+const tickerConverter = require('../tickerConverter')
+const marketRestClient = require('../marketRestClient')
 
 
 
 const getAllMarkets = async () => {
-
     let markets = marketsDBmanager.getAllMarkets()
     for(i=0 ; i<markets.length ; i++){
         for(j=0 ; j<markets[i].tickers.length ; j++){
-            markets[i].tickers[j] = tickerConverter(markets[i].tickers[j])
+            console.log(markets[i].name.toUpperCase())
+            markets[i].tickers[j] = tickerConverter.MARKET_TO_TICKER[markets[i].name.toUpperCase()][markets[i].tickers[j].toUpperCase()]
         }
     }
-
-    // let markets = await Market.find()
-    // .then(markets=>{
-    //     for(i=0 ; i<markets.length ; i++){
-    //         for(j=0 ; j<markets[i].tickers.length ; j++){
-    //             markets[i].tickers[j] = tickerConverter(markets[i].tickers[j])
-    //         }
-    //     }
-    //     console.log("findAll dto markets: ", markets)
-    //     return markets
-    // })
-    // .catch(err=>{
-    //     console.error(err)
-    // })
     return markets
 }
 
-const tickerConverter = (ticker) => {
-    let finalTicker = ticker
-    if(
-        ticker.toUpperCase()==='tBTCUSD' ||
-        ticker.toUpperCase()==='XBTUSD' ||
-        ticker.toUpperCase()==='BTC-USD' ||
-        ticker.toUpperCase()==='TBTCUSD'
-    ) finalTicker = "BTC-USD"
-    if(
-        ticker.toUpperCase()==='BTCUSDT' ||
-        ticker.toUpperCase()==='BTC-USDT' ||
-        ticker.toUpperCase()==='USDT_BTC'
-    ) finalTicker = "BTC-USDT"
-    return finalTicker
+const getTickerByMarket = async (marketName, ticker) => {
+    let marketTicker = tickerConverter.MARKET_TO_TICKER[marketName.toUpperCase()][ticker.toUpperCase()]
+    let reponse = null
+    if(!!marketTicker) {
+        result = await marketRestClient.getTickerByMarket(marketName, marketTicker)
+        console.log('getTickerByMarket: ', result.data)
+        reponse = result.data
+    }
+    return reponse
 }
 
+
 module.exports = {
-    getAllMarkets
+    getAllMarkets,
+    getTickerByMarket
 };

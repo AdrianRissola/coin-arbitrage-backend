@@ -3,20 +3,9 @@ const marketsDBmanager = require('../marketsDBmanager')
 const constants = require('../tickerConverter')
 
 
-const marketToPrice = {
-    BITFINEX: async ()=>{return await platforms.getMarketPrice('bitfinex')},
-    BINANCE: async ()=>{return await platforms.getBinancePriceBTCUSDT()},
-    COINBASE: async ()=>{return await platforms.getCoinbasePriceBTCUSD()},
-    BITTREX: async ()=>{return await platforms.getBittrexPriceBTCUSDT()},
-    POLONIEX: async ()=>{return await platforms.getPoloniexPriceBTCUSDT()},
-    KRAKEN: async ()=>{return await platforms.getKrakenPriceBTCUSD()},
-    OKEX: async ()=>{return await platforms.getOkexPriceBTCUSDT()},
-    BITMEX: async ()=>{return await platforms.getBitmexPriceBTCUSDT()}
-}
 
-
-const getArbitrages = async (marketNames, ticker) => {
-    
+const getArbitrages = async (marketNames, ticker, minProfitPercentage) => {
+    minProfitPercentage = Number(minProfitPercentage)
     let marketPrices = []
     let markets = []
     
@@ -25,7 +14,7 @@ const getArbitrages = async (marketNames, ticker) => {
     else    
         markets = marketsDBmanager.getMarketsByNames(marketNames)
         
-    for(i=0 ; i<markets.length ; i++) {
+    for(let i=0 ; i<markets.length ; i++) {
         let marketTicker = constants.MARKET_TO_TICKER[markets[i].name.toUpperCase()][ticker.toUpperCase()]
         if(!!marketTicker) {
             console.log('retrieveing: ', markets[i].name, ' ', ticker, ' ', marketTicker)
@@ -40,31 +29,44 @@ const getArbitrages = async (marketNames, ticker) => {
     let date = new Date()
     for(i=0 ; i<sortedList.length ; i++){
         for(j=i+1 ; j<sortedList.length ; j++){
-            arbitrages.push(
-                {
-                    "transactions" : [
-                        {
-                            "type" : "BUY",
-                            "market" : sortedList[i].platform,
-                            "pair" : sortedList[i].ticker,
-                            "price" : sortedList[i].price,
-                        },
-                        {
-                            "type" : "SELL",
-                            "market" : sortedList[j].platform,
-                            "pair" : sortedList[j].ticker,
-                            "price" : sortedList[j].price,
-                        }
-                    ],
-                    "diffPerUnit" : sortedList[j].price - sortedList[i].price,
-                    "date" : date
-                }
-            )
+            let profitPercentage = percentage(sortedList[i].price, sortedList[j].price)
+            if(!minProfitPercentage || profitPercentage>=minProfitPercentage)
+                arbitrages.push(
+                    {
+                        "transactions" : [
+                            {
+                                "type" : "BUY",
+                                "market" : sortedList[i].platform,
+                                "pair" : sortedList[i].ticker,
+                                "price" : sortedList[i].price,
+                            },
+                            {
+                                "type" : "SELL",
+                                "market" : sortedList[j].platform,
+                                "pair" : sortedList[j].ticker,
+                                "price" : sortedList[j].price,
+                            }
+                        ],
+                        "profitPerUnit" : sortedList[j].price - sortedList[i].price,
+                        "profitPercentage" : profitPercentage,
+                        "date" : date
+                    }
+                )
         }
     }
-    let arbitragesSortedByDiffPerUnit = arbitrages.sort((e1, e2) => e2.diffPerUnit-e1.diffPerUnit)
+    let arbitragesSortedByDiffPerUnit = arbitrages.sort((e1, e2) => e2.profitPerUnit-e1.profitPerUnit)
     console.log("arbitrages: ", JSON.stringify(arbitragesSortedByDiffPerUnit))
     return arbitragesSortedByDiffPerUnit;
+}
+
+percentage = (num1, num2) => {
+    let temp
+    if(num1<num2) {
+        temp = num1
+        num1 = num2
+        num2 = temp
+    }
+    return 100*(num1 - num2) / num2
 }
 
 module.exports = {

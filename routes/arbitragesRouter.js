@@ -4,6 +4,8 @@ const arbitragesController = require('../controller/arbitragesController')
 
 router.get('/coin-arbitrage/crypto/markets', arbitragesController.getAllMarkets)
 
+router.get('/coin-arbitrage/crypto/:market/tickers/:ticker', arbitragesController.getTickerByMarket)
+
 router.get('/coin-arbitrage/crypto/tickers', arbitragesController.getAllTickers)
 
 router.get('/coin-arbitrage/crypto/current-arbitrages', arbitragesController.getArbitrages)
@@ -36,9 +38,17 @@ router.get('/', (request, response) => {
                 '<td>Show all available tickers</td>'+
             '</tr>'+
             '<tr>'+
+                '<td>GET</td>'+
+                '<td>/coin-arbitrage/crypto/:market/tickers/:ticker</td>'+
+                '<td style=\'text-align:center\'>-</td>'+
+                '<td>Show all data ticker provided by market</td>'+
+            '</tr>'+
+            '<tr>'+
                 '<td>GET</td>'+   
                 '<td>/coin-arbitrage/crypto/current-arbitrages</td>'+
-                '<td style=\'text-align:center\'>ticker=BTC-USD (mandatory)<br> markets=binance,coinbase (optional) <br> top=5 (optional)</td>'+
+                '<td style=\'text-align:center\'>ticker=BTC-USD (mandatory)<br> markets=binance,coinbase (optional)' +
+                '<br> top=5 (optional)'+
+                '<br> minProfitPercentage=0.1 (optional)</td>'+
                 '<td>Show all possible current arbitrages for available markets ordered by best profit</td>'+
             '</tr>'+
             '<tr>'+
