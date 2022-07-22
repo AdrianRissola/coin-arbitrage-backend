@@ -51,24 +51,18 @@ exports.getTickerByMarket = (request, response, next) => {
 }
 
 exports.getArbitrages = (request, response, next) => {
-    console.log("request.query.markets: ", request.query.markets)
-    console.log("request.query.ticker: ", request.query.ticker)
-    console.log("request.query.minProfitPercentage: ", request.query.minProfitPercentage)
-    console.log("request.query.top: ", request.query.top)
-    let requestValidationsError = false
+    console.log("request.query: ", request.query)
     let markets = null
     
     if(!!request.query.markets) {
         markets = request.query.markets.split(",")
         if(!!markets && markets.length===1) {
-            requestValidationsError = true
             response.locals.error = errorHelper.errors.BAD_REQUEST('more than one market is mandatory')
             next()
         }
     }
 
     if(!request.query.ticker) {
-        requestValidationsError = true
         response.locals.error = {
             code: 400,
             message: 'ticker is mandatory'
