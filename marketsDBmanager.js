@@ -40,6 +40,20 @@ exports.getMarketByName = (name) => {
     } else {
         return getMarketByName(name)
     } 
+}
+
+exports.getMarketTickerName = (marketName, ticker) => {
+    ticker = ticker.toUpperCase()
+    if(!marketsFromDB) {
+        Market.find({})
+        .then(result => {
+            console.log("no markets from db, reloaded: ", result)
+            mongoose.connection.close
+            return getMarketByName(marketName).availableTickersToMarketTickers[ticker]
+        })
+    } else {
+        return getMarketByName(marketName).availableTickersToMarketTickers[ticker]
+    } 
 } 
 
 exports.getAllMarkets = () => {

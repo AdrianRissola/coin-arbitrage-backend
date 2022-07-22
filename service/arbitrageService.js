@@ -1,6 +1,5 @@
 const platforms = require('../marketRestClient')
 const marketsDBmanager = require('../marketsDBmanager')
-const constants = require('../tickerConverter')
 
 
 
@@ -14,11 +13,13 @@ const getArbitrages = async (marketNames, ticker, minProfitPercentage) => {
     else    
         markets = marketsDBmanager.getMarketsByNames(marketNames)
         
+    console.log(ticker.toUpperCase())
     for(let i=0 ; i<markets.length ; i++) {
-        let marketTicker = constants.MARKET_TO_TICKER[markets[i].name.toUpperCase()][ticker.toUpperCase()]
-        if(!!marketTicker) {
-            console.log('retrieveing: ', markets[i].name, ' ', ticker, ' ', marketTicker)
-            marketPrices.push(await platforms.getMarketPrice(markets[i].name, marketTicker))
+        console.log(marketsDBmanager.getMarketByName(markets[i].name))
+        let marketPrice = await platforms.getMarketPrice(markets[i].name, ticker)
+        if(!!marketPrice) {
+            console.log('requesting: ', markets[i].name, ' ', ticker)
+            marketPrices.push(marketPrice)
         }
     }
 
