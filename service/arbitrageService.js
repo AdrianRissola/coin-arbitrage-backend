@@ -15,8 +15,10 @@ const getArbitrages = async (marketNames, ticker, minProfitPercentage) => {
         
     console.log(ticker.toUpperCase())
     for(let i=0 ; i<markets.length ; i++) {
-        console.log(marketsDBmanager.getMarketByName(markets[i].name))
+        console.log('markettttt', marketsDBmanager.getMarketByName(markets[i].name))
+        console.log('tickerrrrrr', ticker)
         let marketPrice = await platforms.getMarketPrice(markets[i].name, ticker)
+        console.log('marketPriceeeeeeeeeeeeeeeeee', marketPrice)
         if(!!marketPrice) {
             console.log('requesting: ', markets[i].name, ' ', ticker)
             marketPrices.push(marketPrice)
