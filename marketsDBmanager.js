@@ -60,6 +60,16 @@ exports.getAllMarkets = () => {
     return marketsFromDB 
 }
 
+exports.getAllMarketsByTicker = (ticker) => {
+    let markets = []
+    for(let i=0 ;i<marketsFromDB.length ; i++) {
+        if(!!marketsFromDB[i].availableTickersToMarketTickers[ticker.toUpperCase()])
+            markets.push(marketsFromDB[i])
+    }
+    console.log("getAllMarketsByTicker ", ticker, markets)
+    return markets 
+}
+
 exports.setAvailableTickers = (tickers) => {
     availableTickers = tickers
 }

@@ -5,6 +5,8 @@ const summary = require('../summary')
 
 router.get('/coin-arbitrage/crypto/markets', arbitragesController.getAllMarkets)
 
+router.get('/coin-arbitrage/crypto/markets/tickers/:ticker/prices', arbitragesController.getAllPricesByTicker)
+
 router.get('/coin-arbitrage/crypto/markets/:market/tickers/:ticker', arbitragesController.getTickerByMarket)
 
 router.get('/coin-arbitrage/crypto/available-tickers', arbitragesController.getAllTickers)

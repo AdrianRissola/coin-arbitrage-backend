@@ -8,9 +8,12 @@ const getTickerByMarket = async (marketName, ticker) => {
     let marketTickerName = marketsDBmanager.getMarketTickerName(marketName, ticker)
     let result = null
     if(!!marketTickerName) {
-        let url = market.baseUrl.replace('${ticker}', marketTickerName)
+        let url = market.url.base.concat(market.url.tickerPath).replace('${ticker}', marketTickerName)
         console.log("requesting url: ", url)
         result = await axios.get(url)
+        .catch(err=>{
+            console.error(err)
+        })
     }
     return result
 }
@@ -22,10 +25,10 @@ const getMarketPrice = async (marketName, ticker) => {
         marketPrice = {
             platform: marketName,
             ticker: ticker,
-            price: marketRestClientResultHandler.getPriceByMarketAndTicker(marketName, ticker, result)
+            price: marketRestClientResultHandler.getPriceByMarketAndTicker(marketName, ticker, result),
+            date: new Date()
         }
         console.log({marketPrice});
-        marketPrice.price = Number(marketPrice.price)
     }
     return marketPrice
 }

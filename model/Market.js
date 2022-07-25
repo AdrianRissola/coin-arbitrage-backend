@@ -10,11 +10,16 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
     'ETH-BTC': String
 })
 
+const uslSchema = new mongoose.Schema({
+    base: String,
+    tickerPath: String,
+    'pathToPrice': []
+})
+
 const marketSchema = new mongoose.Schema({
     name: String,
     type : String,
-    baseUrl: String, 
-    tickers : [String],
+    url: uslSchema,
     availableTickersToMarketTickers: availableTickersToMarketTickersSchema
 })
 

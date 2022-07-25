@@ -15,6 +15,12 @@ module.exports = Object.freeze(
             '<td>Show all available markets</td>'+
         '</tr>'+
         '<tr>'+
+            '<td>GET</td>'+   
+            '<td>/coin-arbitrage/crypto/markets/tickers/:ticker/prices</td>'+
+            '<td style=\'text-align:center\'>-</td>'+
+            '<td>Show all prices from available markets by ticker</td>'+
+        '</tr>'+
+        '<tr>'+
             '<td>GET</td>'+
             '<td>/coin-arbitrage/crypto/available-tickers</td>'+
             '<td style=\'text-align:center\'>-</td>'+

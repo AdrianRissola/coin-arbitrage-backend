@@ -21,6 +21,17 @@ exports.getAllTickers = (request, response) => {
     response.json(marketsDBmanager.getAllAvailableTickers())
 }
 
+exports.getAllPricesByTicker = (request, response, next) => {
+    console.log("request.params.ticker: ", request.params.ticker)
+
+    marketService.getAllPricesByTicker(request.params.ticker).then(
+        result => {
+            console.log("getAllPricesByTicker: ", result)
+            response.json(result)
+        }
+    )
+}
+
 exports.getTickerByMarket = (request, response, next) => {
     console.log("request.params.market: ", request.params.market)
     console.log("request.params.ticker: ", request.params.ticker)
@@ -71,11 +82,11 @@ exports.getArbitrages = (request, response, next) => {
     }
 
     if(!response.locals.error)    
-        arbitrageService.getArbitrages(markets, request.query.ticker, Number(request.query.minProfitPercentage))
+        arbitrageService.getArbitrages(
+            markets, request.query.ticker, 
+            Number(request.query.minProfitPercentage),
+            request.query.top)
         .then(result=>{
-            let top = parseInt(request.query.top)
-            if(top && top>0 && top<=result.length)
-                result = result.slice(0, parseInt(request.query.top))
             console.log("arbitrageService.getArbitrages(): ", result)
             response.json(result)
         })

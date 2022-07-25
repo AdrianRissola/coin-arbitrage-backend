@@ -3,8 +3,9 @@ const marketsDBmanager = require('../marketsDBmanager')
 
 
 
-const getArbitrages = async (marketNames, ticker, minProfitPercentage) => {
+const getArbitrages = async (marketNames, ticker, minProfitPercentage, top) => {
     minProfitPercentage = Number(minProfitPercentage)
+    top = Number(top)
     let marketPrices = []
     let markets = []
     
@@ -13,7 +14,6 @@ const getArbitrages = async (marketNames, ticker, minProfitPercentage) => {
     else    
         markets = marketsDBmanager.getMarketsByNames(marketNames)
         
-    console.log(ticker.toUpperCase())
     for(let i=0 ; i<markets.length ; i++) {
         let marketPrice = await platforms.getMarketPrice(markets[i].name, ticker)
         if(!!marketPrice) {
@@ -26,40 +26,48 @@ const getArbitrages = async (marketNames, ticker, minProfitPercentage) => {
     console.log("sorted list: ", sortedList)
 
     let arbitrages = []
-    let date = new Date()
-    for(i=0 ; i<sortedList.length ; i++){
-        for(j=i+1 ; j<sortedList.length ; j++){
-            let profitPercentage = percentage(sortedList[i].price, sortedList[j].price)
-            if(!minProfitPercentage || profitPercentage>=minProfitPercentage)
-                arbitrages.push(
-                    {
-                        "transactions" : [
-                            {
-                                "type" : "BUY",
-                                "market" : sortedList[i].platform,
-                                "pair" : sortedList[i].ticker,
-                                "price" : sortedList[i].price,
-                            },
-                            {
-                                "type" : "SELL",
-                                "market" : sortedList[j].platform,
-                                "pair" : sortedList[j].ticker,
-                                "price" : sortedList[j].price,
-                            }
-                        ],
-                        "profitPerUnit" : sortedList[j].price - sortedList[i].price,
-                        "profitPercentage" : profitPercentage,
-                        "date" : date
-                    }
-                )
+    if(top===1) {
+        arbitrages.push(buildArbitrage(sortedList[0], sortedList[sortedList.length - 1]))
+    } else {
+        for(i=0 ; i<sortedList.length ; i++){
+            for(j=i+1 ; j<sortedList.length ; j++){
+                let profitPercentage = percentage(sortedList[i].price, sortedList[j].price)
+                if((!minProfitPercentage || profitPercentage>=minProfitPercentage) && sortedList[i].price<sortedList[j].price)
+                    arbitrages.push(buildArbitrage(sortedList[i], sortedList[j]))
+            }
         }
+        arbitrages = arbitrages.sort((e1, e2) => e2.profitPerUnit-e1.profitPerUnit)
     }
-    let arbitragesSortedByDiffPerUnit = arbitrages.sort((e1, e2) => e2.profitPerUnit-e1.profitPerUnit)
-    console.log("arbitrages: ", JSON.stringify(arbitragesSortedByDiffPerUnit))
-    return arbitragesSortedByDiffPerUnit;
+    if(top>1) {
+        arbitrages = arbitrages.slice(0, parseInt(top))
+    }
+    
+    return arbitrages;
 }
 
-percentage = (num1, num2) => {
+const buildArbitrage = (marketPriceI, marketPriceJ) => {
+    return {
+        "transactions" : [
+            {
+                "type" : "BUY",
+                "market" : marketPriceI.platform,
+                "pair" : marketPriceI.ticker,
+                "price" : marketPriceI.price,
+            },
+            {
+                "type" : "SELL",
+                "market" : marketPriceJ.platform,
+                "pair" : marketPriceJ.ticker,
+                "price" : marketPriceJ.price,
+            }
+        ],
+        "profitPerUnit" : marketPriceJ.price - marketPriceI.price,
+        "profitPercentage" : percentage(marketPriceI.price, marketPriceJ.price),
+        "date" : new Date()
+    }
+}
+
+const percentage = (num1, num2) => {
     let temp
     if(num1<num2) {
         temp = num1
