@@ -1,65 +1,7 @@
-const marketService = require('../service/marketService')
 const arbitrageService = require('../service/arbitrageService')
 const Arbitrage = require('../model/Arbitrage')
-const marketsDBmanager = require('../marketsDBmanager')
 const errorHelper = require('../errorHelper')
 
-
-
-exports.getAllMarkets = (request, response) => {
-    marketService.getAllMarkets()
-    .then(markets => {
-        console.log("markets: ", markets)
-        response.json(markets)
-    })
-    .catch(err=>{
-        console.error(err)
-    })
-}
-
-exports.getAllTickers = (request, response) => {
-    response.json(marketsDBmanager.getAllAvailableTickers())
-}
-
-exports.getAllPricesByTicker = (request, response, next) => {
-    console.log("request.params.ticker: ", request.params.ticker)
-
-    marketService.getAllPricesByTicker(request.params.ticker).then(
-        result => {
-            console.log("getAllPricesByTicker: ", result)
-            response.json(result)
-        }
-    )
-}
-
-exports.getTickerByMarket = (request, response, next) => {
-    console.log("request.params.market: ", request.params.market)
-    console.log("request.params.ticker: ", request.params.ticker)
-    let ticker = request.params.ticker.toUpperCase()
-
-    let market = marketsDBmanager.getMarketByName(request.params.market)
-    if(!market) {
-        response.locals.error = errorHelper.errors.NOT_FOUND(`market ${request.params.market} not found`)
-        next()
-    }
-
-    let marketTicker = market.availableTickersToMarketTickers[ticker]
-    if(!marketTicker) {
-        response.locals.error = errorHelper.errors.NOT_FOUND(`ticker ${ticker} not found`)
-        next() 
-    }
-
-    if(!response.locals.error) {
-        marketService.getTickerByMarket(request.params.market, ticker).then(
-            result => {
-                console.log("ticker: ", result)
-                response.json(result)
-            }
-        )
-    } else {
-        next()
-    }
-}
 
 exports.getArbitrages = (request, response, next) => {
     console.log("request.query: ", request.query)
@@ -118,6 +60,7 @@ exports.saveArbitrage = (request, response) => {
     arbitrage.save()
     .then(result=>{
         console.log("saved: ", result)
+        loadMarketsFromDB()
         response.json(result)
     })
     .catch(err=>{

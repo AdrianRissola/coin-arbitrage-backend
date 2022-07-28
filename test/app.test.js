@@ -1,67 +1,10 @@
-const helper = require('./helper')
+const helper = require('./testHelper')
+require('./testDbLoader')
 const mongoose = require('mongoose')
-const Market = require('../model/Market')
-const Ticker = require('../model/AvailableTicker')
 const supertest = require("supertest")
 const app = require("../index")
 const api = supertest(app)
-//const server = require("../server")
 
-const env = process.env
-const marketsDBmanager = require('../marketsDBmanager')
-
-
-
-beforeAll(async () => {
-    await Market.deleteMany({})
-    await Ticker.deleteMany({})
-
-    console.log("dbUri: ", env.NODE_ENV)
-    console.log("connecting db for test")
-    let dbUri = env.NODE_ENV === 'test'? env.MONGO_DB_URI_TEST : env.MONGO_DB_URI
-    await mongoose.connect(dbUri)
-    .then( async ()=>{
-        console.log("connected db for test")
-        for(let market of helper.MARKETS){
-            let marketToSave = new Market(market)
-            await marketToSave.save()
-            .then(result=>{
-                console.log('TEST - saved market: ', result)
-            })
-            .catch(err=>{
-                console.error(err)
-            })
-        }
-        await Market.find()
-            .then(result=>{
-                marketsDBmanager.setMarketsFromDB(result)
-            })
-            .catch(err=>{
-                console.error(err)
-            })
-        for(let ticker of helper.TICKERS){
-            let tickerToSave = new Ticker(ticker)
-            await tickerToSave.save()
-            .then(result=>{
-                console.log('TEST - ticker market: ', result)
-                marketsDBmanager.setAvailableTickers(result)
-            })
-            .catch(err=>{
-                console.error(err)
-            })
-        }
-        await Ticker.find()
-            .then(result=>{
-                marketsDBmanager.setAvailableTickers(result)
-            })
-            .catch(err=>{
-                console.error(err)
-            })
-    })
-    .catch(err=>{
-        console.error(err)
-    })
-})
 
 describe('test App/index.js', () => {
 
@@ -89,7 +32,7 @@ describe('test App/index.js', () => {
 })
 
     
-describe('test GET /coin-arbitrage/crypto/:market/tickers/:ticker', () => {
+describe('test GET /coin-arbitrage/crypto/markets/:market/tickers/:ticker', () => {
 
     test('GET binance btc-usdt ticker - with status 200', async () => {
         const response = await api.get('/coin-arbitrage/crypto/markets/binance/tickers/btc-usdt')
@@ -155,8 +98,352 @@ describe('test GET /coin-arbitrage/crypto/current-arbitrages', () => {
 }, 30000)
 
 
+describe('test POST /coin-arbitrage/crypto/markets', () => {
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 200', async () => {
+        
+        const payload_OK = {
+            name: "Binance",
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_OK)
+            .expect(200)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_name', async () => {
+        
+        const payload_without_name = {
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_without_name)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_empty_name', async () => {
+        
+        const payload_with_empty_name = {
+            name: "",
+            type: "Exchange with order book",
+            availableTickersToMarketTickers : {
+            },
+            url : {
+                base: "http://api.binance.com/apiii/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_with_empty_name)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_url', async () => {
+        
+        const payload_without_url = {
+            name: "Binance",
+            type: "Exchange with order book",
+            availableTickersToMarketTickers : {
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_without_url)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+    
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_https', async () => {
+        
+        const payload_without_https = {
+            name: "Binance",
+            type: "Exchange with order book",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "http://api.binancee.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_without_https)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_invalid_host', async () => {
+        
+        const payload_invalid_host = {
+            name: "Binance",
+            type: "Exchange with order book",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "http://api.biiinannceee.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_invalid_host)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_invalid_market_path', async () => {
+        
+        const payload_invalid_market_path = {
+            name: "Binance",
+            type: "Exchange with order book",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "http://api.binance.com/apiii/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_invalid_market_path)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_tickers', async () => {
+        
+        const payload_without_tickers = {
+            name: "Binance",
+            type: "Exchange with order book",
+            availableTickersToMarketTickers : {
+            },
+            url : {
+                base: "http://api.binance.com/apiii/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_without_tickers)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_invalid_ticker', async () => {
+        
+        const payload_with_invalid_ticker = {
+            name: "Binance",
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTCXXXXXX": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_with_invalid_ticker)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_invalid_Market_ticker', async () => {
+        
+        const payload_with_invalid_Market_ticker = {
+            name: "Binance",
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTCXXXXX",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "price"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_with_invalid_Market_ticker)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_empty_pathToPrice', async () => {
+        
+        const payload_with_empty_pathToPrice = {
+            name: "Binance",
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTCXXXXX",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_with_empty_pathToPrice)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_pathToPrice', async () => {
+        
+        const payload_without_pathToPrice = {
+            name: "Binance",
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTCXXXXX",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_without_pathToPrice)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_invalid_pathToPrice', async () => {
+        
+        const payload_invalid_pathToPrice = {
+            name: "Binance",
+            type: "binanc",
+            availableTickersToMarketTickers : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTCXXXXX",
+                "ETH-USDT": "ETHUSDT"
+            },
+            url : {
+                base: "https://api.binance.com/api/v3",
+                tickerPath: "/ticker/price?symbol=${ticker}",
+                pathToPrice: [
+                    "data",
+                    "XXXX"
+                ]
+            }
+        }
+
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_invalid_pathToPrice)
+            .expect(400)
+        expect(response).not.toBe(null)
+        expect(response.body).not.toBe(null)
+        expect(response).toBeTruthy();
+        expect(response.body).toBeTruthy();
+    }, 10000)
+
+}, 30000)
+
+
 
 afterAll(()=>{
     mongoose.connection.close()
-    //server.close()
 })

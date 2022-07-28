@@ -13,7 +13,7 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 const uslSchema = new mongoose.Schema({
     base: String,
     tickerPath: String,
-    'pathToPrice': []
+    pathToPrice: []
 })
 
 const marketSchema = new mongoose.Schema({

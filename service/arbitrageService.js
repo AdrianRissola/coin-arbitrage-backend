@@ -15,7 +15,7 @@ const getArbitrages = async (marketNames, ticker, minProfitPercentage, top) => {
         markets = marketsDBmanager.getMarketsByNames(marketNames)
         
     for(let i=0 ; i<markets.length ; i++) {
-        let marketPrice = await platforms.getMarketPrice(markets[i].name, ticker)
+        let marketPrice = await platforms.getMarketPrice(markets[i], markets[i].availableTickersToMarketTickers[ticker.toUpperCase()])
         if(!!marketPrice) {
             console.log('adding to arbitrage list: ', markets[i].name, ' ', ticker)
             marketPrices.push(marketPrice)

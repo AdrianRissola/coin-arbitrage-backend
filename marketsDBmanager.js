@@ -8,17 +8,6 @@ exports.setMarketsFromDB = (markets) => {
     marketsFromDB = markets
 }
 
-const getMarketByName = (name) => {
-    let marketFound = null
-    for(let i=0 ; i<marketsFromDB.length ; i++){
-        if(marketsFromDB[i].name.toUpperCase()===name.toUpperCase()) {
-            marketFound = marketsFromDB[i]
-            break
-        }
-    }
-    return marketFound
-}
-
 exports.getMarketsByNames = (names) => {
     let markets = []
     for(let i=0 ; i<names.length ; i++){
@@ -40,6 +29,16 @@ exports.getMarketByName = (name) => {
     } else {
         return getMarketByName(name)
     } 
+}
+
+exports.loadMarketsFromDB = async () => {
+    await Market.find({})
+        .then(result => {
+            this.setMarketsFromDB(result)
+            console.log("reloading markets from db: ", result)
+            mongoose.connection.close
+            return result
+        })
 }
 
 exports.getMarketTickerName = (marketName, ticker) => {
@@ -76,5 +75,16 @@ exports.setAvailableTickers = (tickers) => {
 
 exports.getAllAvailableTickers = () => {
     return availableTickers
+}
+
+const getMarketByName = (name) => {
+    let marketFound = null
+    for(let i=0 ; i<marketsFromDB.length ; i++){
+        if(marketsFromDB[i].name.toUpperCase()===name.toUpperCase()) {
+            marketFound = marketsFromDB[i]
+            break
+        }
+    }
+    return marketFound
 }
 

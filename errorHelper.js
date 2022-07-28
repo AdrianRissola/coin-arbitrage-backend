@@ -14,5 +14,13 @@ exports.errors = {
             message : "NOT FOUND",
             description: msg
         }
-    }       
+    },
+    INTERNAL_SERVER_ERROR: (msg) => 
+    {
+        return {
+            code : 500,
+            message : "INTERNAL SERVER ERROR",
+            description: msg
+        }
+    }      
 }

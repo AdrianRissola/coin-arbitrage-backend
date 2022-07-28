@@ -1,11 +1,9 @@
 
 const marketsDBmanager = require('./marketsDBmanager')
+const errorHelper = require('./errorHelper')
 
 
-exports.getPriceByMarketAndTicker = (marketName, ticker, marketPriceResult) => {
-    
-    let market = marketsDBmanager.getMarketByName(marketName)
-    let marketTicker = market.availableTickersToMarketTickers[ticker.toUpperCase()]
+exports.getPriceByMarketAndTicker = (market, marketTickerName, marketPriceResult) => {
     
     let price = null
     if (!!marketPriceResult) {
@@ -13,13 +11,21 @@ exports.getPriceByMarketAndTicker = (marketName, ticker, marketPriceResult) => {
         let pathToPrice = market.url.pathToPrice
         price = marketPriceResult
         for(field of pathToPrice) {
+            if(!price)
+                break
             if(field==='${ticker}')
-                field = field.replace('${ticker}', marketTicker)
+                field = field.replace('${ticker}', marketTickerName)
             price = price[field]
         }
         console.log("PRICE: ", price)   
     }
-    return Number(price)
+
+    const priceNumber = Number(price)
+   
+    if (!price || !priceNumber)
+        throw errorHelper.errors.BAD_REQUEST(`invalid market.url.pathToPrice: ${market.url.pathToPrice}`)
+
+    return priceNumber
 }
 
 
