@@ -24,11 +24,11 @@ router.get('/', (request, response) => { response.send(summary) })
 
 
 router.use((request, response, next) => {
-    if(!!response.locals.error.code)
-        response.status(response.locals.error.code).json({error: response.locals.error})
-    else 
-        response.status(500).json({error: response.locals.error.message, stack: response.locals.error.stack})
-
+    if(!!response.locals.error)
+        if(!!response.locals.error.code)
+            response.status(response.locals.error.code).json({error: response.locals.error})
+        else 
+            response.status(500).json({error: response.locals.error.message, stack: response.locals.error.stack})
 })
 
 module.exports = router;

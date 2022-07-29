@@ -35,17 +35,18 @@ const getTickerByMarket = async (market, marketTickerName) => {
 
 
 const getMarketPrice = async (market, marketTickerName) => {
-    if (!market || !marketTickerName) throw new Error(`market:${market} marketTickerName:${marketTickerName} may not be null/undefined`)
     let marketPrice = null
-    let result = await getTickerByMarket(market, marketTickerName)
-    if(!!result) {
-        marketPrice = {
-            platform: market.name,
-            ticker: marketTickerName,
-            price: marketRestClientResultHandler.getPriceByMarketAndTicker(market, marketTickerName, result),
-            date: new Date()
+    if (!!market && !!marketTickerName) {
+        let result = await getTickerByMarket(market, marketTickerName)
+        if(!!result) {
+            marketPrice = {
+                platform: market.name,
+                ticker: marketTickerName,
+                price: marketRestClientResultHandler.getPriceByMarketAndTicker(market, marketTickerName, result),
+                date: new Date()
+            }
+            console.log({marketPrice});
         }
-        console.log({marketPrice});
     }
     return marketPrice
 }
