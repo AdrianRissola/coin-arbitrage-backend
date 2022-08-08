@@ -4,14 +4,15 @@ const mongoose = require('mongoose')
 const supertest = require("supertest")
 const app = require("../index")
 const api = supertest(app)
+//const jest = require("jest")
 
+jest.setTimeout(90000)
 
 describe('test App/index.js', () => {
 
-    test('GET markets with status 200', async () => { //preg cuando me doy cuenta q es async
+    test('GET markets with status 200', async () => { 
         const response = await api.get('/coin-arbitrage/crypto/markets')
             .expect(200)
-            //.expect('Content-Type', '/application\/json/')
         expect(response).not.toBe(null)
         expect(response.body).not.toBe(null)
         expect(response).toBeTruthy();
@@ -19,7 +20,7 @@ describe('test App/index.js', () => {
         expect(response.body.length).toBeTruthy();
     })
 
-    test('GET tickers with status 200', async () => { //preg cuando me doy cuenta q es async
+    test('GET tickers with status 200', async () => {
         const response = await api.get('/coin-arbitrage/crypto/available-tickers')
             .expect(200)
         console.log('GET tickers with status 200: ', response.body)
@@ -75,7 +76,7 @@ describe('test GET /coin-arbitrage/crypto/current-arbitrages', () => {
         expect(response.body).toBeTruthy();
         expect(response.body.length).toBeTruthy();
         expect(response.body.length).toBe(top)
-    }, 10000)
+    }, 20000)
     
     test('GET current-arbitrages for only one market return status 400', async () => {
         const response = await api.get(`/coin-arbitrage/crypto/current-arbitrages?ticker=btc-usdt&markets=binance`)
@@ -101,26 +102,7 @@ describe('test GET /coin-arbitrage/crypto/current-arbitrages', () => {
 describe('test POST /coin-arbitrage/crypto/markets', () => {
 
     test('test POST /coin-arbitrage/crypto/markets - with status 200', async () => {
-        
-        const payload_OK = {
-            name: "Binance",
-            type: "binanc",
-            availableTickersToMarketTickers : {
-                "BTC-USDT": "BTCUSDT",
-                "ETH-BTC": "ETHBTC",
-                "ETH-USDT": "ETHUSDT"
-            },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
-            }
-        }
-
-        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(payload_OK)
+        const response = await api.post(`/coin-arbitrage/crypto/markets`).send(helper.MARKETS[0])
             .expect(200)
         expect(response).not.toBe(null)
         expect(response.body).not.toBe(null)
@@ -129,21 +111,25 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_name', async () => {
-        
+
         const payload_without_name = {
-            type: "binanc",
-            availableTickersToMarketTickers : {
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
                 "BTC-USDT": "BTCUSDT",
                 "ETH-BTC": "ETHBTC",
                 "ETH-USDT": "ETHUSDT"
             },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "http://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -156,19 +142,26 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_empty_name', async () => {
-        
+
         const payload_with_empty_name = {
-            name: "",
-            type: "Exchange with order book",
-            availableTickersToMarketTickers : {
+            "name": "",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
             },
-            url : {
-                base: "http://api.binance.com/apiii/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "http://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -180,12 +173,19 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
         expect(response.body).toBeTruthy();
     }, 10000)
 
-    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_url', async () => {
-        
+    test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_api-rest_data', async () => {
+
         const payload_without_url = {
-            name: "Binance",
-            type: "Exchange with order book",
-            availableTickersToMarketTickers : {
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
+                "BTC-USDT": "BTCUSDT",
+                "ETH-BTC": "ETHBTC",
+                "ETH-USDT": "ETHUSDT"
+            },
+            "com" : {
+                "api" : {
+                }
             }
         }
 
@@ -198,22 +198,26 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
     
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_https', async () => {
-        
+
         const payload_without_https = {
-            name: "Binance",
-            type: "Exchange with order book",
-            availableTickersToMarketTickers : {
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
                 "BTC-USDT": "BTCUSDT",
                 "ETH-BTC": "ETHBTC",
                 "ETH-USDT": "ETHUSDT"
             },
-            url : {
-                base: "http://api.binancee.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "http://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -226,22 +230,26 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_invalid_host', async () => {
-        
+
         const payload_invalid_host = {
-            name: "Binance",
-            type: "Exchange with order book",
-            availableTickersToMarketTickers : {
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
                 "BTC-USDT": "BTCUSDT",
                 "ETH-BTC": "ETHBTC",
                 "ETH-USDT": "ETHUSDT"
             },
-            url : {
-                base: "http://api.biiinannceee.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binanceeee.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -254,22 +262,26 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_invalid_market_path', async () => {
-        
+
         const payload_invalid_market_path = {
-            name: "Binance",
-            type: "Exchange with order book",
-            availableTickersToMarketTickers : {
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
                 "BTC-USDT": "BTCUSDT",
                 "ETH-BTC": "ETHBTC",
                 "ETH-USDT": "ETHUSDT"
             },
-            url : {
-                base: "http://api.binance.com/apiii/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/apiiii/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -282,19 +294,23 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_tickers', async () => {
-        
+
         const payload_without_tickers = {
-            name: "Binance",
-            type: "Exchange with order book",
-            availableTickersToMarketTickers : {
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
             },
-            url : {
-                base: "http://api.binance.com/apiii/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -307,22 +323,26 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_invalid_ticker', async () => {
-        
+
         const payload_with_invalid_ticker = {
-            name: "Binance",
-            type: "binanc",
-            availableTickersToMarketTickers : {
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
                 "BTC-USDT": "BTCUSDT",
                 "ETH-BTCXXXXXX": "ETHBTC",
                 "ETH-USDT": "ETHUSDT"
             },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -335,22 +355,26 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_invalid_Market_ticker', async () => {
-        
+
         const payload_with_invalid_Market_ticker = {
-            name: "Binance",
-            type: "binanc",
-            availableTickersToMarketTickers : {
-                "BTC-USDT": "BTCUSDT",
-                "ETH-BTC": "ETHBTCXXXXX",
-                "ETH-USDT": "ETHUSDT"
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
+                "BTC-USDT" : "BTCUSDT",
+                "ETH-BTC" : "ETHBTCXXXXX",
+                "ETH-USDT" : "ETHUSDT"
             },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         }
 
@@ -363,20 +387,24 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     }, 10000)
 
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_with_empty_pathToPrice', async () => {
-        
+
         const payload_with_empty_pathToPrice = {
-            name: "Binance",
-            type: "binanc",
-            availableTickersToMarketTickers : {
-                "BTC-USDT": "BTCUSDT",
-                "ETH-BTC": "ETHBTCXXXXX",
-                "ETH-USDT": "ETHUSDT"
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
+                "BTC-USDT" : "BTCUSDT",
+                "ETH-BTC" : "ETHBTC",
+                "ETH-USDT" : "ETHUSDT"
             },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice": [
+                        ]
+                    }
+                }
             }
         }
 
@@ -391,16 +419,20 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_without_pathToPrice', async () => {
         
         const payload_without_pathToPrice = {
-            name: "Binance",
-            type: "binanc",
-            availableTickersToMarketTickers : {
-                "BTC-USDT": "BTCUSDT",
-                "ETH-BTC": "ETHBTCXXXXX",
-                "ETH-USDT": "ETHUSDT"
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
+                "BTC-USDT" : "BTCUSDT",
+                "ETH-BTC" : "ETHBTC",
+                "ETH-USDT" : "ETHUSDT"
             },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                    }
+                }
             }
         }
 
@@ -415,20 +447,24 @@ describe('test POST /coin-arbitrage/crypto/markets', () => {
     test('test POST /coin-arbitrage/crypto/markets - with status 400 - payload_invalid_pathToPrice', async () => {
         
         const payload_invalid_pathToPrice = {
-            name: "Binance",
-            type: "binanc",
-            availableTickersToMarketTickers : {
-                "BTC-USDT": "BTCUSDT",
-                "ETH-BTC": "ETHBTCXXXXX",
-                "ETH-USDT": "ETHUSDT"
+            "name" : "Binance",
+            "type" : "Exchange with order book",
+            "availableTickersToMarketTickers" : {
+                "BTC-USDT" : "BTCUSDT",
+                "ETH-BTC" : "ETHBTC",
+                "ETH-USDT" : "ETHUSDT"
             },
-            url : {
-                base: "https://api.binance.com/api/v3",
-                tickerPath: "/ticker/price?symbol=${ticker}",
-                pathToPrice: [
-                    "data",
-                    "XXXX"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice" : [
+                            "data",
+                            "XXXX"
+                        ]
+                    }
+                }
             }
         }
 

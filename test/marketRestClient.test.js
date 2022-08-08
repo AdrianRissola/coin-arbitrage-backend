@@ -27,7 +27,7 @@ describe('test marketRestClient.getMarketPrice  BTC-USDT with mocked axios', () 
         const marketPrice = await marketRestClient.getMarketPrice(market, marketTickerName)
 
         // expect
-        const url = market.url.base.concat(market.url.tickerPath).replace('${ticker}', marketTickerBTCUSDT.data.symbol)
+        const url = market.com.api.rest.base.concat(market.com.api.rest.tickerPath).replace('${ticker}', marketTickerBTCUSDT.data.symbol)
         expect(axios.get).toHaveBeenCalledWith(url);
         expect(marketPrice.price).toEqual(Number(marketTickerBTCUSDT.data.price));
         expect(!!marketPrice).toBe(true)
@@ -55,7 +55,7 @@ describe('test marketRestClient.getTickerByMarket  BTC-USDT with mocked axios', 
         const marketTicker = await marketRestClient.getTickerByMarket(market, marketTickerName)
 
         // expect
-        const url = market.url.base.concat(market.url.tickerPath).replace('${ticker}', marketTickerBTCUSDT.data.symbol)
+        const url = market.com.api.rest.base.concat(market.com.api.rest.tickerPath).replace('${ticker}', marketTickerBTCUSDT.data.symbol)
         expect(axios.get).toHaveBeenCalledWith(url);
         expect(marketTicker).toEqual(marketTickerBTCUSDT);
     }, 30000)

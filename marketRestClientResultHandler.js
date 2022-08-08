@@ -7,8 +7,8 @@ exports.getPriceByMarketAndTicker = (market, marketTickerName, marketPriceResult
     
     let price = null
     if (!!marketPriceResult) {
-        console.log('market.url.pathToPrice: ', market.url.pathToPrice)
-        let pathToPrice = market.url.pathToPrice
+        console.log('market.url.pathToPrice: ', market.com.api.rest.pathToPrice)
+        let pathToPrice = market.com.api.rest.pathToPrice
         price = marketPriceResult
         for(field of pathToPrice) {
             if(!price)
@@ -23,7 +23,7 @@ exports.getPriceByMarketAndTicker = (market, marketTickerName, marketPriceResult
     const priceNumber = Number(price)
    
     if (!price || !priceNumber)
-        throw errorHelper.errors.BAD_REQUEST(`invalid market.url.pathToPrice: ${market.url.pathToPrice}`)
+        throw errorHelper.errors.BAD_REQUEST(`invalid market.url.pathToPrice: ${market.com.api.rest.pathToPrice}`)
 
     return priceNumber
 }

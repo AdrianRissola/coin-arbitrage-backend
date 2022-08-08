@@ -2,6 +2,9 @@ const marketService = require('../service/marketService')
 const marketsDBmanager = require('../marketsDBmanager')
 const errorHelper = require('../errorHelper')
 const availableTickers = require('../availableTickers')
+const marketWebSocketClient = require('../marketWebSocketClient')
+const dtoConverter = require('../dtoConverter')
+
 
 
 
@@ -44,7 +47,7 @@ exports.getTickerByMarket = (request, response, next) => {
     let marketTicker = market.availableTickersToMarketTickers[ticker]
     if(!marketTicker) {
         response.locals.error = errorHelper.errors.NOT_FOUND(`ticker ${ticker} not found`)
-        next() 
+        next(errorHelper.errors.NOT_FOUND(`ticker ${ticker} not found`))
     }
 
     if(!response.locals.error) {
@@ -72,7 +75,7 @@ exports.saveMarket = async (request, response, next) => {
         response.json(savedMarket)
     } catch (error) {
         response.locals.error = error
-        next()
+        next(error)
     }
     
 }
@@ -93,7 +96,30 @@ const isValidMarketRequest = (market) => {
     }
 
     return !!market && !!marketTickers && !!marketTickers.length>0 && !!isValidTicker && !!market.name && 
-    !!market.url && !!market.availableTickersToMarketTickers &&
-    !!market.url.base && market.url.base.startsWith("https://") &&
-    !!market.url.tickerPath && !!market.url.pathToPrice && market.url.pathToPrice.length>0
+    !!market.availableTickersToMarketTickers && !!market.com && !!market.com.api && !!market.com.api.rest
+    && !!market.com.api.rest.base && !!market.com.api.rest.base.startsWith("https://") 
+    && !!market.com.api.rest.tickerPath && !!market.com.api.rest.pathToPrice && !!market.com.api.rest.pathToPrice.length>0
+}
+
+
+exports.connectWebsocket = async (request, response, next) => {
+
+    let websocketsActions = request.body
+
+    let webSocketConnections
+    if(websocketsActions.action==="open") {
+        let marketsWithWebsockets = marketsDBmanager.getAllMarketsWithWebsockets()
+
+        webSocketConnections = await marketWebSocketClient.connect(marketsWithWebsockets)
+            
+        marketWebSocketClient.send(marketsWithWebsockets)
+
+    }
+
+    if(websocketsActions.action==="close") {
+        let a = await marketWebSocketClient.getwebSocketConnections()
+        webSocketConnections = await marketWebSocketClient.close(websocketsActions)
+    }
+
+    return response.json(dtoConverter.toConnectionsDto(webSocketConnections))
 }

@@ -10,17 +10,32 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
     'ETH-BTC': String
 })
 
-const uslSchema = new mongoose.Schema({
+const websocketSchema = new mongoose.Schema({
+    host: String,
+    url: String,
+    tickerRequest: String,
+})
+
+const restSchema = new mongoose.Schema({
     base: String,
     tickerPath: String,
-    pathToPrice: []
+    pathToPrice: [],
+})
+
+const apiSchema = new mongoose.Schema({
+    rest: restSchema,
+    websocket: websocketSchema
+})
+
+const comSchema = new mongoose.Schema({
+    api: apiSchema,
 })
 
 const marketSchema = new mongoose.Schema({
     name: String,
     type : String,
-    url: uslSchema,
-    availableTickersToMarketTickers: availableTickersToMarketTickersSchema
+    availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
+    com: comSchema
 })
 
 const Market = model('Market', marketSchema)

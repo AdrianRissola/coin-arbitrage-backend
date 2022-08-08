@@ -20,15 +20,16 @@ router.get('/coin-arbitrage/crypto/historical-arbitrages', arbitragesController.
 
 router.post('/coin-arbitrage/crypto/arbitrages', arbitragesController.saveArbitrage)
 
+router.post('/coin-arbitrage/crypto/markets/tickers/websockets', marketController.connectWebsocket)
+
 router.get('/', (request, response) => { response.send(summary) })
 
 
-router.use((request, response, next) => {
-    if(!!response.locals.error)
-        if(!!response.locals.error.code)
-            response.status(response.locals.error.code).json({error: response.locals.error})
-        else 
-            response.status(500).json({error: response.locals.error.message, stack: response.locals.error.stack})
+router.use((error, request, response, next) => {
+    if(error.code)
+        response.status(error.code).json({error: error})
+    else 
+        response.status(500).json(error)
 })
 
 module.exports = router;

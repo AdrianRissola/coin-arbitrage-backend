@@ -9,13 +9,22 @@ module.exports = Object.freeze({
                 "ETH-BTC" : "ETHBTC",
                 "ETH-USDT" : "ETHUSDT"
             },
-            "url" : {
-                "base" : "https://api.binance.com/api/v3",
-                "tickerPath" : "/ticker/price?symbol=${ticker}",
-                "pathToPrice" : [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.binance.com/api/v3",
+                        "tickerPath" : "/ticker/price?symbol=${ticker}",
+                        "pathToPrice" : [
+                            "data",
+                            "price"
+                        ]
+                    },
+                    "websocket" : {
+                        "host" : "stream.binance.com",
+                        "url" : "wss://${host}:9443/ws",
+                        "tickerRequest" : "{\"method\":\"SUBSCRIBE\",\"params\":[\"btcusdt@ticker\"],\"id\":1}"
+                    }
+                }
             }
         },
         {
@@ -28,13 +37,22 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "tETHUST",
                 "ETH-BTC" : "tETHBTC"
             },
-            "url" : {
-                "base" : "https://api-pub.bitfinex.com/v2",
-                "tickerPath" : "/ticker/${ticker}",
-                "pathToPrice" : [
-                    "data",
-                    6
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api-pub.bitfinex.com/v2",
+                        "tickerPath" : "/ticker/${ticker}",
+                        "pathToPrice" : [
+                            "data",
+                            6
+                        ]
+                    },
+                    "websocket" : {
+                        "host" : "api-pub.bitfinex.com",
+                        "url" : "wss://${host}/ws/2",
+                        "tickerRequest" : "{\"event\":\"subscribe\",\"channel\":\"ticker\",\"symbol\":\"tBTCUSD\"}"
+                    }
+                }
             }
         },
         {
@@ -47,13 +65,17 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "ETH-USDT",
                 "ETH-BTC" : "ETH-BTC"
             },
-            "url" : {
-                "base" : "https://api.exchange.coinbase.com",
-                "tickerPath" : "/products/${ticker}/ticker",
-                "pathToPrice" : [
-                    "data",
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.exchange.coinbase.com",
+                        "tickerPath" : "/products/${ticker}/ticker",
+                        "pathToPrice" : [
+                            "data",
+                            "price"
+                        ]
+                    }
+                }
             }
         },
         {
@@ -66,13 +88,17 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "ETH-USDT",
                 "ETH-BTC" : "ETH-BTC"
             },
-            "url" : {
-                "base" : "https://api.bittrex.com/v3",
-                "tickerPath" : "/markets/${ticker}/ticker",
-                "pathToPrice" : [
-                    "data",
-                    "lastTradeRate"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.bittrex.com/v3",
+                        "tickerPath" : "/markets/${ticker}/ticker",
+                        "pathToPrice" : [
+                            "data",
+                            "lastTradeRate"
+                        ]
+                    }
+                }
             }
         },
         {
@@ -83,14 +109,18 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "USDT_ETH",
                 "ETH-BTC" : "BTC_ETH"
             },
-            "url" : {
-                "base" : "https://poloniex.com/public",
-                "tickerPath" : "?command=returnTicker",
-                "pathToPrice" : [
-                    "data",
-                    "${ticker}",
-                    "last"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://poloniex.com/public",
+                        "tickerPath" : "?command=returnTicker",
+                        "pathToPrice" : [
+                            "data",
+                            "${ticker}",
+                            "last"
+                        ]
+                    }
+                }
             }
         },
         {
@@ -103,16 +133,20 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "ETHUSDT",
                 "ETH-BTC" : "XETHXXBT"
             },
-            "url" : {
-                "base" : "https://api.kraken.com/0/public",
-                "tickerPath" : "/Ticker?pair=${ticker}",
-                "pathToPrice" : [
-                    "data",
-                    "result",
-                    "${ticker}",
-                    "c",
-                    0
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.kraken.com/0/public",
+                        "tickerPath" : "/Ticker?pair=${ticker}",
+                        "pathToPrice" : [
+                            "data",
+                            "result",
+                            "${ticker}",
+                            "c",
+                            0
+                        ]
+                    }
+                }
             }
         },
         {
@@ -124,15 +158,19 @@ module.exports = Object.freeze({
                 "ETH-USD" : "ETH-USD",
                 "ETH-USDT" : "ETH-USDT"
             },
-            "url" : {
-                "base" : "https://www.okex.com/api/v5",
-                "tickerPath" : "/market/ticker?instId=${ticker}-SWAP",
-                "pathToPrice" : [
-                    "data",
-                    "data",
-                    0,
-                    "last"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://www.okex.com/api/v5",
+                        "tickerPath" : "/market/ticker?instId=${ticker}-SWAP",
+                        "pathToPrice" : [
+                            "data",
+                            "data",
+                            0,
+                            "last"
+                        ]
+                    }
+                }
             }
         },
         {
@@ -145,14 +183,18 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "ethusdt",
                 "ETH-BTC" : "ethxbt"
             },
-            "url" : {
-                "base" : "https://www.bitmex.com/api/v1",
-                "tickerPath" : "/trade?symbol=${ticker}&count=1&reverse=true",
-                "pathToPrice" : [
-                    "data",
-                    0,
-                    "price"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://www.bitmex.com/api/v1",
+                        "tickerPath" : "/trade?symbol=${ticker}&count=1&reverse=true",
+                        "pathToPrice" : [
+                            "data",
+                            0,
+                            "price"
+                        ]
+                    }
+                }
             }
         },
         {
@@ -165,13 +207,17 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "ethusdt",
                 "ETH-BTC" : "ethbtc"
             },
-            "url" : {
-                "base" : "https://www.bitstamp.net/api/v2",
-                "tickerPath" : "/ticker/${ticker}",
-                "pathToPrice" : [
-                    "data",
-                    "last"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://www.bitstamp.net/api/v2",
+                        "tickerPath" : "/ticker/${ticker}",
+                        "pathToPrice" : [
+                            "data",
+                            "last"
+                        ]
+                    }
+                }
             }
         },
         {
@@ -182,14 +228,18 @@ module.exports = Object.freeze({
                 "ETH-USDT" : "ETHUSDT",
                 "ETH-BTC" : "ETHBTC"
             },
-            "url" : {
-                "base" : "https://api.hitbtc.com/api/3/public",
-                "tickerPath" : "/ticker?symbols=${ticker}",
-                "pathToPrice" : [
-                    "data",
-                    "${ticker}",
-                    "last"
-                ]
+            "com" : {
+                "api" : {
+                    "rest" : {
+                        "base" : "https://api.hitbtc.com/api/3/public",
+                        "tickerPath" : "/ticker?symbols=${ticker}",
+                        "pathToPrice" : [
+                            "data",
+                            "${ticker}",
+                            "last"
+                        ]
+                    }
+                }
             }
         }
     ],

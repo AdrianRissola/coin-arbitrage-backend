@@ -10,31 +10,26 @@ exports.getArbitrages = (request, response, next) => {
     if(!!request.query.markets) {
         markets = request.query.markets.split(",")
         if(!!markets && markets.length===1) {
-            response.locals.error = errorHelper.errors.BAD_REQUEST('more than one market is mandatory')
-            next()
+            next(errorHelper.errors.BAD_REQUEST('more than one market is mandatory'))
         }
     }
 
     if(!request.query.ticker) {
-        response.locals.error = {
-            code: 400,
-            message: 'ticker is mandatory'
-        }
-        next()
+        next(errorHelper.errors.BAD_REQUEST('ticker is mandatory'))
     }
 
-    if(!response.locals.error)    
-        arbitrageService.getArbitrages(
-            markets, request.query.ticker, 
-            Number(request.query.minProfitPercentage),
-            request.query.top)
-        .then(result=>{
-            console.log("arbitrageService.getArbitrages(): ", result)
-            response.json(result)
-        })
-        .catch(err=>{
-            console.error(err)
-        })
+    arbitrageService.getArbitrages(
+        markets, request.query.ticker, 
+        Number(request.query.minProfitPercentage),
+        request.query.top)
+    .then(result=>{
+        console.log("arbitrageService.getArbitrages(): ", result)
+        response.json(result)
+    })
+    .catch(err=>{
+        console.error(err)
+        next(err)
+    })
     
 }
 

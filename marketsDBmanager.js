@@ -77,6 +77,20 @@ exports.getAllAvailableTickers = () => {
     return availableTickers
 }
 
+exports.getAllMarketsWithWebsockets = () => {
+    let marketsWithWebsockets = []
+    for(let i=0 ;i<marketsFromDB.length ; i++) {
+        if(marketsFromDB[i].com && 
+            marketsFromDB[i].com.api &&
+            marketsFromDB[i].com.api.websocket &&
+            marketsFromDB[i].com.api.websocket.host &&
+            marketsFromDB[i].com.api.websocket.url &&
+            marketsFromDB[i].com.api.websocket.tickerRequest)
+            marketsWithWebsockets.push(marketsFromDB[i])
+    }
+    return marketsWithWebsockets
+}
+
 const getMarketByName = (name) => {
     let marketFound = null
     for(let i=0 ; i<marketsFromDB.length ; i++){

@@ -1,26 +1,42 @@
 const platforms = require('../marketRestClient')
 const marketsDBmanager = require('../marketsDBmanager')
+const marketWebSocketClient = require('../marketWebSocketClient')
 
 
 
-const getArbitrages = async (marketNames, ticker, minProfitPercentage, top) => {
-    minProfitPercentage = Number(minProfitPercentage)
-    top = Number(top)
-    let marketPrices = []
-    let markets = []
+const getMarketPrices = async (marketNames, ticker) => {
     
     if(!marketNames)
         markets = marketsDBmanager.getAllMarkets()
     else    
         markets = marketsDBmanager.getMarketsByNames(marketNames)
         
+    let marketPrices = []
     for(let i=0 ; i<markets.length ; i++) {
+        console.log(markets[i].name + ' COMMMMMMM: ' + markets[i].com)
         let marketPrice = await platforms.getMarketPrice(markets[i], markets[i].availableTickersToMarketTickers[ticker.toUpperCase()])
         if(!!marketPrice) {
             console.log('adding to arbitrage list: ', markets[i].name, ' ', ticker)
             marketPrices.push(marketPrice)
         }
     }
+
+    return marketPrices
+}
+
+const getArbitragesFromStreams = async (marketNames, ticker, minProfitPercentage, top) => {
+    let marketPrices = marketWebSocketClient.getTicker()
+    return calculateArbitrages(marketPrices, minProfitPercentage, top)
+}
+
+const getArbitrages = async (marketNames, ticker, minProfitPercentage, top) => {
+    let marketPrices = await getMarketPrices(marketNames, ticker)
+    return calculateArbitrages(marketPrices, minProfitPercentage, top)
+}
+
+const calculateArbitrages = (marketPrices, minProfitPercentage, top) => {
+    minProfitPercentage = Number(minProfitPercentage)
+    top = Number(top) 
 
     let sortedList = marketPrices.sort((e1, e2) => e1.price-e2.price)
     console.log("sorted list: ", sortedList)

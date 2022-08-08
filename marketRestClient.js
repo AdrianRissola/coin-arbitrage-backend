@@ -8,7 +8,7 @@ const getTickerByMarket = async (market, marketTickerName) => {
     let result = null
     let url = null
     if(!!marketTickerName) {
-        url = market.url.base.concat(market.url.tickerPath).replace('${ticker}', marketTickerName)
+        url = market.com.api.rest.base.concat(market.com.api.rest.tickerPath).replace('${ticker}', marketTickerName)
         console.log("requesting url: ", url)
         result = await axios.get(url)
         .then(response => {
@@ -36,9 +36,9 @@ const getTickerByMarket = async (market, marketTickerName) => {
 
 const getMarketPrice = async (market, marketTickerName) => {
     let marketPrice = null
-    if (!!market && !!marketTickerName) {
+    if (market && marketTickerName) {
         let result = await getTickerByMarket(market, marketTickerName)
-        if(!!result) {
+        if(result) {
             marketPrice = {
                 platform: market.name,
                 ticker: marketTickerName,
