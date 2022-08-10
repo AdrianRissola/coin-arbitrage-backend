@@ -18,6 +18,18 @@ exports.getMarketsByNames = (names) => {
     return markets;
 } 
 
+
+exports.getMarketByWebsocketHost = (websocketHost) => {
+    let marketFound = null
+    for(let i=0 ; i<marketsFromDB.length ; i++){
+        if(marketsFromDB[i].com.api.websocket.host.toUpperCase()===websocketHost.toUpperCase()) {
+            marketFound = marketsFromDB[i]
+            break
+        }
+    }
+    return marketFound
+} 
+
 exports.getMarketByName = (name) => {
     if(!marketsFromDB) {
         Market.find({})
@@ -77,10 +89,12 @@ exports.getAllAvailableTickers = () => {
     return availableTickers
 }
 
-exports.getAllMarketsWithWebsockets = () => {
+exports.getAllMarketsWithWebsocketsByTicker = (ticker) => {
     let marketsWithWebsockets = []
     for(let i=0 ;i<marketsFromDB.length ; i++) {
-        if(marketsFromDB[i].com && 
+        if(
+            marketsFromDB[i].availableTickersToMarketTickers[ticker.toUpperCase()] &&
+            marketsFromDB[i].com && 
             marketsFromDB[i].com.api &&
             marketsFromDB[i].com.api.websocket &&
             marketsFromDB[i].com.api.websocket.host &&
@@ -95,6 +109,17 @@ const getMarketByName = (name) => {
     let marketFound = null
     for(let i=0 ; i<marketsFromDB.length ; i++){
         if(marketsFromDB[i].name.toUpperCase()===name.toUpperCase()) {
+            marketFound = marketsFromDB[i]
+            break
+        }
+    }
+    return marketFound
+}
+
+const getMarketByKeyValue = (key, value) => {
+    let marketFound = null
+    for(let i=0 ; i<marketsFromDB.length ; i++){
+        if(marketsFromDB[i][key].toUpperCase()===value.toUpperCase()) {
             marketFound = marketsFromDB[i]
             break
         }

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const marketRestClientResultHandler = require('./marketRestClientResultHandler')
+const marketRestClientResultHandler = require('./marketApiResponseHandler')
 const errorHelper = require('./errorHelper')
 
 
@@ -42,7 +42,9 @@ const getMarketPrice = async (market, marketTickerName) => {
             marketPrice = {
                 platform: market.name,
                 ticker: marketTickerName,
-                price: marketRestClientResultHandler.getPriceByMarketAndTicker(market, marketTickerName, result),
+                price: marketRestClientResultHandler.getPriceByMarketAndTicker(
+                    market.com.api.rest.pathToPrice, marketTickerName, result
+                ),
                 date: new Date()
             }
             console.log({marketPrice});

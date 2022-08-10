@@ -1,18 +1,19 @@
 let WebSocketClient = require('websocket').client;
+const marketsDBmanager = require("./marketsDBmanager")
+const marketApiResponseHandler = require("./marketApiResponseHandler")
 
 let client = new WebSocketClient();
 
 let webSocketConnections = {}
-let ticker = null
-let marketPriceStram = {}
+let marketTickerStream = {}
 
 
-const binanceWebsocketUnubscribeRequest = {
-    "method": "UNSUBSCRIBE",
-    "params":
-    [ "btcusdt@ticker" ],
-    "id": 312
-}
+// const binanceWebsocketUnubscribeRequest = {
+//     "method": "UNSUBSCRIBE",
+//     "params":
+//     [ "btcusdt@ticker" ],
+//     "id": 312
+// }
 
 exports.resposne = null
 
@@ -53,10 +54,25 @@ const onConnect = (market) => {
             
             connection.on('message', function(message) {
                 if (message.type === 'utf8') {
-                    ticker = message.utf8Data
-                    marketPriceStram[connection.socket._host] = ticker
-                    console.log("Received from:", connection.socket._host + " message: " + JSON.stringify(message));
-                    console.log("////");
+                    
+                    let price = null
+                    let tickerResult = JSON.parse(message.utf8Data)
+                    let market = marketsDBmanager.getMarketByWebsocketHost(connection.socket._host)
+                    
+                    try {
+                        price = marketApiResponseHandler.getPriceByMarketAndTicker(market.com.api.websocket.pathToPrice, null, tickerResult)
+                        marketTickerStream[connection.socket._host] = {}
+                        marketTickerStream[connection.socket._host]["rawData"] = message.utf8Data
+                        marketTickerStream[connection.socket._host]["data"] = {}
+                        marketTickerStream[connection.socket._host]["data"]["market"] = market
+                        marketTickerStream[connection.socket._host]["data"]["ticker"] = tickerResult
+                        marketTickerStream[connection.socket._host]["data"]["price"] = price
+                    } catch (error) {
+                        console.log(error.description)
+                    }
+
+                    //console.log("Received from:", connection.socket._host + " message: " + JSON.stringify(message));
+                    console.log("marketTickerStream: ", marketTickerStream);
                 }
             });
             
@@ -64,16 +80,17 @@ const onConnect = (market) => {
     })    
 }
 
-exports.getwebSocketConnections = async () =>  webSocketConnections
 
-exports.getTicker = () => { ticker }
+exports.getMarketTickerStream = () =>  marketTickerStream
 
-exports.getTickerPrice = () => { ticker.c }
 
-exports.send = (markets) => {
+exports.send = (markets, websocketsActions) => {
+    let ticker = websocketsActions.tickers[0]
     markets.forEach(market=>{
         if (webSocketConnections[market.com.api.websocket.host].connected) {
-            webSocketConnections[market.com.api.websocket.host].sendUTF(market.com.api.websocket.tickerRequest);
+            let tickerRequest = market.com.api.websocket.tickerRequest
+            .replace("${ticker}", market.com.api.websocket.availableTickersToMarketTickers[ticker.toUpperCase()]) 
+            webSocketConnections[market.com.api.websocket.host].sendUTF(tickerRequest);
         }
     })
 }

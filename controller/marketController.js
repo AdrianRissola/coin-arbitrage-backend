@@ -4,6 +4,7 @@ const errorHelper = require('../errorHelper')
 const availableTickers = require('../availableTickers')
 const marketWebSocketClient = require('../marketWebSocketClient')
 const dtoConverter = require('../dtoConverter')
+const marketWebSocketService = require('../service/marketWebSocketService')
 
 
 
@@ -105,21 +106,13 @@ const isValidMarketRequest = (market) => {
 exports.connectWebsocket = async (request, response, next) => {
 
     let websocketsActions = request.body
-
     let webSocketConnections
-    if(websocketsActions.action==="open") {
-        let marketsWithWebsockets = marketsDBmanager.getAllMarketsWithWebsockets()
+    
+    if(websocketsActions.action==="open")
+        webSocketConnections = await marketWebSocketService.openAndSend(websocketsActions)
 
-        webSocketConnections = await marketWebSocketClient.connect(marketsWithWebsockets)
-            
-        marketWebSocketClient.send(marketsWithWebsockets)
-
-    }
-
-    if(websocketsActions.action==="close") {
-        let a = await marketWebSocketClient.getwebSocketConnections()
-        webSocketConnections = await marketWebSocketClient.close(websocketsActions)
-    }
+    if(websocketsActions.action==="close")
+        webSocketConnections = await marketWebSocketService.close(websocketsActions)
 
     return response.json(dtoConverter.toConnectionsDto(webSocketConnections))
 }

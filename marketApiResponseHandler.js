@@ -1,14 +1,11 @@
 
-const marketsDBmanager = require('./marketsDBmanager')
 const errorHelper = require('./errorHelper')
 
 
-exports.getPriceByMarketAndTicker = (market, marketTickerName, marketPriceResult) => {
+exports.getPriceByMarketAndTicker = (pathToPrice, marketTickerName, marketPriceResult) => {
     
     let price = null
     if (!!marketPriceResult) {
-        console.log('market.url.pathToPrice: ', market.com.api.rest.pathToPrice)
-        let pathToPrice = market.com.api.rest.pathToPrice
         price = marketPriceResult
         for(field of pathToPrice) {
             if(!price)
@@ -23,7 +20,7 @@ exports.getPriceByMarketAndTicker = (market, marketTickerName, marketPriceResult
     const priceNumber = Number(price)
    
     if (!price || !priceNumber)
-        throw errorHelper.errors.BAD_REQUEST(`invalid market.url.pathToPrice: ${market.com.api.rest.pathToPrice}`)
+        throw errorHelper.errors.BAD_REQUEST(`Error when try to extract price from: ${marketPriceResult} using: ${pathToPrice}`)
 
     return priceNumber
 }
