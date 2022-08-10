@@ -18,28 +18,39 @@ exports.onRequest = (request) => {
     connection.on('message', async function(message) {
         if (message.type === 'utf8') {
             console.log('Received Message: ' + message.utf8Data);
+            
+            let jsonData = null
+            try {
+                jsonData = JSON.parse(message.utf8Data);
+            } catch (error) {
+                console.log('invalid json: ' + message);
+                connection.sendUTF(error.message);
+            }
+            
 
-            jsonData = JSON.parse(message.utf8Data);
-
-            await marketWebSocketService.openAndSend({
-                tickers: [jsonData.ticker]
-            })
-
-            refreshIntervalId = setInterval(
-                () => {
-                    let marketTickersStream = marketWebSocketClient.getMarketTickerStream()
-                    console.log('marketTickerStream: ' + JSON.stringify(marketTickersStream));
-                    let marketTickersStreamDto = dtoConverter.toMarketTickersStreamDto(marketTickersStream)
-                    connection.sendUTF(JSON.stringify(marketTickersStreamDto));
-                },
-                1000
-            );
-                
+            
+            if(jsonData && jsonData.ticker) {
+                await marketWebSocketService.openAndSend({
+                    tickers: [jsonData.ticker]
+                })
+    
+                refreshIntervalId = setInterval(
+                    () => {
+                        let marketTickersStream = marketWebSocketClient.getMarketTickerStream()
+                        console.log('marketTickerStream: ' + JSON.stringify(marketTickersStream));
+                        let marketTickersStreamDto = dtoConverter.toMarketTickersStreamDto(marketTickersStream)
+                        connection.sendUTF(JSON.stringify(marketTickersStreamDto));
+                    },
+                    1000
+                );
+            }   
         }
+
         else if (message.type === 'binary') {
             console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
             connection.sendBytes(message.binaryData);
         }
+
     });
 
     connection.on('close', function(reasonCode, description) {
