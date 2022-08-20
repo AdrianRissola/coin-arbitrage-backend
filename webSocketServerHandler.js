@@ -53,10 +53,6 @@ exports.onRequest = request => {
 			const result = validateRequest(message.utf8Data);
 			if (result.isValid) {
 				if (result.jsonData.channel === 'prices') {
-					// await webSocketClientService.openAndSend({
-					//     tickers: [result.jsonData.ticker],
-					//     markets: result.jsonData.markets
-					// })
 					refreshIntervalId = setInterval(async () => {
 						const marketPricesDto = await webSocketServerService.streamMarketPrices(
 							result.jsonData.markets,
@@ -67,10 +63,6 @@ exports.onRequest = request => {
 				}
 
 				if (result.jsonData.channel === 'arbitrages') {
-					// await webSocketClientService.openAndSend({
-					//     tickers: [result.jsonData.ticker],
-					//     markets: result.jsonData.markets
-					// })
 					refreshIntervalId = setInterval(async () => {
 						const arbitrages = await webSocketServerService.streamArbitrages(
 							result.jsonData.markets,
@@ -90,7 +82,6 @@ exports.onRequest = request => {
 
 	connection.on('close', (reasonCode, description) => {
 		clearInterval(refreshIntervalId);
-		// webSocketClientService.close({allMarkets: true})
 		console.log(
 			` Peer ${connection.remoteAddress} disconnected. reasonCode: ${reasonCode} ${description}`
 		);

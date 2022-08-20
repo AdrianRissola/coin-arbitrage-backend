@@ -20,7 +20,24 @@ client.on('connectFailed', error => {
 	console.log(`Connect Error for: ${client.socket.servername} ${error.toString()}`);
 });
 
+const handlePingFrequencyInSeconds = connection => {
+	const market = marketsDBmanager.getMarketByWebsocketHost(connection.socket.servername);
+	const { pingFrequencyInSeconds } = market.com.api.websocket;
+	if (pingFrequencyInSeconds) {
+		let refreshIntervalId;
+		if (connection.connected) {
+			refreshIntervalId = setInterval(async () => {
+				connection.sendUTF('ping');
+			}, pingFrequencyInSeconds * 1000);
+		} else if (!connection.connected) {
+			clearInterval(refreshIntervalId);
+		}
+	}
+};
+
 client.on('connect', connection => {
+	handlePingFrequencyInSeconds(connection);
+
 	console.log(`Connection OK: ${connection.socket.servername}`);
 
 	const market = marketsToConnect.find(

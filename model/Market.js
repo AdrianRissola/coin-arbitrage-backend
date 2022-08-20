@@ -16,6 +16,7 @@ const websocketSchema = new mongoose.Schema({
 	tickerRequest: String,
 	availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
 	pathToPrice: [],
+	pingFrequencyInSeconds: Number,
 });
 
 const restSchema = new mongoose.Schema({
