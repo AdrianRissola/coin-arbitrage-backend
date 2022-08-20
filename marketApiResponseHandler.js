@@ -1,30 +1,33 @@
-
-const errorHelper = require('./errorHelper')
-
+const errorHelper = require('./errorHelper');
 
 exports.getPriceByMarketAndTicker = (pathToPrice, marketTickerName, marketPriceResult) => {
-    
-    let price = null
-    if (!!marketPriceResult) {
-        price = marketPriceResult
-        for(field of pathToPrice) {
-            if(!price)
-                break
-            if(field==='${ticker}')
-                field = field.replace('${ticker}', marketTickerName)
-            price = price[field]
-        }
-        console.log("PRICE: ", price)   
-    }
+	let price = null;
+	if (marketPriceResult) {
+		price = marketPriceResult;
+		// for (let field of pathToPrice) {
+		// 	if (!price) break;
+		// 	if (field === '${ticker}') field = field.replace('${ticker}', marketTickerName);
+		// 	price = price[field];
+		// }
 
-    const priceNumber = Number(price)
-   
-    if (!price || !priceNumber)
-        throw errorHelper.errors.BAD_REQUEST(`Error when try to extract price from: ${marketPriceResult} using: ${pathToPrice}`)
+		pathToPrice.some(fieldPath => {
+			let field = fieldPath;
+			if (fieldPath === '${ticker}') field = fieldPath.replace('${ticker}', marketTickerName);
+			price = price[field];
+			return !price;
+		});
+		// console.log("PRICE: ", price)
+	}
 
-    return priceNumber
-}
+	const priceNumber = Number(price);
 
+	if (!price || !priceNumber)
+		throw errorHelper.errors.BAD_REQUEST(
+			`Error when try to extract price from market ticker using pathToPrice: ${pathToPrice}`
+		);
+
+	return priceNumber;
+};
 
 //     marketToPrice = {
 //         BITFINEX: (marketPriceResult) => marketPriceResult.data[6],

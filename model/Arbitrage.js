@@ -1,23 +1,24 @@
-const mongoose = require('mongoose')
-const {model} = mongoose
+const mongoose = require('mongoose');
+
+const { model } = mongoose;
 
 const transactionSchema = new mongoose.Schema({
-    type: String,         // BUY or SELL
-    market : String,
-    pair : String,
-    price : Number
-})
+	type: String, // BUY or SELL
+	market: String,
+	pair: String,
+	price: Number,
+});
 
 const userSchema = new mongoose.Schema({
-    name : String
-})
+	name: String,
+});
 
 const arbitrageSchema = new mongoose.Schema({
-    transactions : [transactionSchema],
-    user : userSchema,
-    date : Date
-})
+	transactions: [transactionSchema],
+	user: userSchema,
+	date: Date,
+});
 
-const Arbitrage = model('Arbitrage', arbitrageSchema)
+const Arbitrage = model('Arbitrage', arbitrageSchema);
 
-module.exports = Arbitrage
+module.exports = Arbitrage;
