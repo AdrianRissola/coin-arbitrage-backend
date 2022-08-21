@@ -20,14 +20,14 @@ exports.streamArbitrages = async (markets, ticker) => {
 			});
 	});
 
-	// for (const key in marketTickersStream) {
-	// 	if (marketTickersStream[key].connected)
-	// 		marketPrices.push({
-	// 			platform: marketTickersStream[key].data.market.name,
-	// 			price: marketTickersStream[key].data.price,
-	// 			ticker: marketTickersStream[key].data.market.tickerRequest,
-	// 		});
-	// }
-	const arbitrages = arbitrageService.calculateArbitrages(marketPrices, null, 1);
-	return arbitrages;
+	const websocketConnections = marketWebSocketClient.getWebSocketConnections();
+	const connectedMarkets = [];
+	const disconnectedMarkets = [];
+	Object.keys(websocketConnections).forEach(host => {
+		if (websocketConnections[host].connected) connectedMarkets.push(host);
+		else disconnectedMarkets.push(host);
+	});
+
+	const arbitrage = arbitrageService.calculateArbitrages(marketPrices, null, 1);
+	return { arbitrage, connectedMarkets, disconnectedMarkets };
 };

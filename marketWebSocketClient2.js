@@ -20,7 +20,7 @@ client.on('connectFailed', error => {
 	console.log(`Connect Error for: ${client.socket.servername} ${error.toString()}`);
 });
 
-const handlePingFrequencyInSeconds = connection => {
+const handlePingFrequency = connection => {
 	const market = marketsDBmanager.getMarketByWebsocketHost(connection.socket.servername);
 	const { pingFrequencyInSeconds } = market.com.api.websocket;
 	if (pingFrequencyInSeconds) {
@@ -36,7 +36,7 @@ const handlePingFrequencyInSeconds = connection => {
 };
 
 client.on('connect', connection => {
-	handlePingFrequencyInSeconds(connection);
+	handlePingFrequency(connection);
 
 	console.log(`Connection OK: ${connection.socket.servername}`);
 
