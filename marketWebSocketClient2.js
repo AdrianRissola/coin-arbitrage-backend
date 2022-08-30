@@ -20,7 +20,7 @@ client.on('connectFailed', error => {
 	console.log(`Connect Error for: ${client.socket.servername} ${error.toString()}`);
 });
 
-const handlePingFrequency = connection => {
+const sendPing = connection => {
 	const market = marketsDBmanager.getMarketByWebsocketHost(connection.socket.servername);
 	const { pingFrequencyInSeconds } = market.com.api.websocket;
 	if (pingFrequencyInSeconds) {
@@ -28,7 +28,7 @@ const handlePingFrequency = connection => {
 		if (connection.connected) {
 			refreshIntervalId = setInterval(async () => {
 				connection.sendUTF('ping');
-			}, pingFrequencyInSeconds * 1000);
+			}, (pingFrequencyInSeconds - 1) * 1000);
 		} else if (!connection.connected) {
 			clearInterval(refreshIntervalId);
 		}
@@ -36,7 +36,7 @@ const handlePingFrequency = connection => {
 };
 
 client.on('connect', connection => {
-	handlePingFrequency(connection);
+	sendPing(connection);
 
 	console.log(`Connection OK: ${connection.socket.servername}`);
 
@@ -93,7 +93,9 @@ client.on('connect', connection => {
 				marketTickerStream[connection.socket.servername].rawData = message.utf8Data;
 				marketTickerStream[connection.socket.servername].data = {};
 				marketTickerStream[connection.socket.servername].data.market = foundMmarket;
-				marketTickerStream[connection.socket.servername].data.ticker = tickerResult;
+				marketTickerStream[connection.socket.servername].data.ticker =
+					foundMmarket.tickerRequest;
+				marketTickerStream[connection.socket.servername].data.marketTicker = tickerResult;
 				marketTickerStream[connection.socket.servername].data.price = price;
 				marketTickerStream[connection.socket.servername].data.timestamp = new Date();
 
@@ -113,14 +115,20 @@ client.on('connect', connection => {
 });
 
 exports.getMarketTickerStream = (marketsNames, ticker) => {
-	let result = marketTickerStream;
-	if (marketsNames && ticker) {
-		result = {};
-		const websocketHosts = marketsDBmanager.getWebsocketHosts(marketsNames, ticker);
-		Object.keys(marketTickerStream).forEach(host => {
-			if (websocketHosts.includes(host)) result[host] = marketTickerStream[host];
-		});
-	}
+	const result = {};
+
+	let websocketHosts = null;
+	if (marketsNames) websocketHosts = marketsDBmanager.getWebsocketHosts(marketsNames, ticker);
+
+	Object.keys(marketTickerStream).forEach(host => {
+		if (
+			(!websocketHosts || websocketHosts.includes(host)) &&
+			marketTickerStream[host].data.ticker.toUpperCase() === ticker.toUpperCase() &&
+			marketTickerStream[host].connected
+		)
+			result[host] = marketTickerStream[host];
+	});
+
 	return result;
 };
 
@@ -136,12 +144,12 @@ const isConnecting = market => {
 	return connecting;
 };
 
-exports.connectAndSend = async (markets, ticker) => {
+exports.connectAndSend = async (markets, tickers) => {
 	marketsToConnect = markets;
 	marketsToConnect.forEach(marketToConnect => {
 		const market = marketToConnect;
 		market.connected = false;
-		market.tickerRequest = ticker;
+		market.tickerRequest = tickers[0];
 		return market;
 	});
 

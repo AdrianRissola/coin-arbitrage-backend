@@ -1,16 +1,13 @@
-// const dbCon =
 require('./mongo');
 const express = require('express');
-const logger = require('./loggerMiddleware');
-const router = require('./routes/arbitragesRouter');
 
 const app = express();
-
-// mongo
-// dbCon.connect()
+const server = require('http').Server(app);
+const loggerMiddleware = require('./loggerMiddleware');
+const router = require('./routes/arbitragesRouter');
 
 app.use(express.json());
-app.use(logger);
+app.use(loggerMiddleware);
 app.use(router);
 
-module.exports = app;
+module.exports = { app, server };

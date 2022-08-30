@@ -10,7 +10,7 @@ exports.setMarketsFromDB = markets => {
 
 const getMarketByName = name => {
 	let marketFound = null;
-	for (let i = 0; i < marketsFromDB.length; i++) {
+	for (let i = 0; i < marketsFromDB.length; i += 1) {
 		if (marketsFromDB[i].name.toUpperCase() === name.toUpperCase()) {
 			marketFound = marketsFromDB[i];
 			break;
@@ -21,7 +21,7 @@ const getMarketByName = name => {
 
 exports.getMarketsByNames = names => {
 	const markets = [];
-	for (let i = 0; i < names.length; i++) {
+	for (let i = 0; i < names.length; i += 1) {
 		const foundMarket = getMarketByName(names[i]);
 		if (foundMarket) markets.push(foundMarket);
 	}
@@ -30,7 +30,7 @@ exports.getMarketsByNames = names => {
 
 exports.getMarketByWebsocketHost = websocketHost => {
 	let marketFound = null;
-	for (let i = 0; i < marketsFromDB.length; i++) {
+	for (let i = 0; i < marketsFromDB.length; i += 1) {
 		if (marketsFromDB[i].com.api.websocket.host.toUpperCase() === websocketHost.toUpperCase()) {
 			marketFound = marketsFromDB[i];
 			break;
@@ -43,9 +43,9 @@ exports.getWebsocketHosts = (marketsNames, ticker) => {
 	const markets = this.getMarketsWithWebsocket(ticker, marketsNames);
 
 	const websocketHosts = [];
-	for (const market of markets) {
+	markets.forEach(market => {
 		websocketHosts.push(market.com.api.websocket.host);
-	}
+	});
 
 	return websocketHosts;
 };
@@ -92,7 +92,7 @@ exports.getAllMarkets = () => marketsFromDB;
 
 exports.getAllMarketsByTicker = ticker => {
 	const markets = [];
-	for (let i = 0; i < marketsFromDB.length; i++) {
+	for (let i = 0; i < marketsFromDB.length; i += 1) {
 		if (marketsFromDB[i].availableTickersToMarketTickers[ticker.toUpperCase()])
 			markets.push(marketsFromDB[i]);
 	}
@@ -106,25 +106,30 @@ exports.setAvailableTickers = tickers => {
 
 exports.getAllAvailableTickers = () => availableTickers;
 
-const hasWebsocket = (market, ticker) =>
+const hasAtLeastOneTicker = (market, tickers) =>
+	tickers.some(
+		ticker => market.com.api.websocket.availableTickersToMarketTickers[ticker.toUpperCase()]
+	);
+
+const hasWebsocket = (market, tickers) =>
 	!!(
 		market.com &&
 		market.com.api &&
 		market.com.api.websocket &&
-		market.com.api.websocket.availableTickersToMarketTickers[ticker.toUpperCase()] &&
+		hasAtLeastOneTicker(market, tickers) &&
 		market.com.api.websocket.host &&
 		market.com.api.websocket.url &&
 		market.com.api.websocket.tickerRequest
 	);
 
-exports.getMarketsWithWebsocket = (ticker, marketNames) => {
+exports.getMarketsWithWebsocket = (tickers, marketNames) => {
 	const marketsWithWebsockets = marketsFromDB.filter(market => {
 		let marketNameFound = null;
 		if (marketNames)
 			marketNameFound = marketNames.find(
 				marketName => marketName.toUpperCase() === market.name.toUpperCase()
 			);
-		return hasWebsocket(market, ticker) && (marketNameFound || !marketNames);
+		return hasWebsocket(market, tickers) && (marketNameFound || !marketNames);
 	});
 	return marketsWithWebsockets;
 };

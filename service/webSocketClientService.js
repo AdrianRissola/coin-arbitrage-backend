@@ -3,13 +3,13 @@ const marketWebSocketClient = require('../marketWebSocketClient2');
 
 exports.openAndSend = async websocketsActions => {
 	const marketsWithWebsockets = marketsDBmanager.getMarketsWithWebsocket(
-		websocketsActions.tickers[0],
+		websocketsActions.tickers,
 		websocketsActions.markets
 	);
 
 	const webSocketConnections = await marketWebSocketClient.connectAndSend(
 		marketsWithWebsockets,
-		websocketsActions.tickers[0]
+		websocketsActions.tickers
 	);
 
 	return webSocketConnections;

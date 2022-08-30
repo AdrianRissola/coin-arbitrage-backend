@@ -1,13 +1,14 @@
 const WebSocketServer = require('websocket').server;
-const app = require('./index');
+const { server } = require('./index');
 const webSocketServerHandler = require('./webSocketServerHandler');
 
 const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, () => {
+
+server.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);
 });
 
-wsServer = new WebSocketServer({
+const wsServer = new WebSocketServer({
 	httpServer: server,
 	// You should not use autoAcceptConnections for production
 	// applications, as it defeats all standard cross-origin protection

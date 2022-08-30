@@ -1,6 +1,6 @@
 exports.logMarketTickerStream = marketTickerStream => {
 	const markets = [];
-	for (const host in marketTickerStream) {
+	Object.keys(marketTickerStream).forEach(host => {
 		markets.push({
 			host,
 			ticker: marketTickerStream[host].data.market.tickerRequest,
@@ -8,13 +8,14 @@ exports.logMarketTickerStream = marketTickerStream => {
 			date: marketTickerStream[host].data.timestamp,
 			connected: marketTickerStream[host].connected,
 		});
-	}
-	console.table(markets);
+	});
+
+	// console.table(markets);
 };
 
 exports.logArbitrage = arbitrage => {
 	const txs = [];
-	for (const tx of arbitrage.transactions) {
+	arbitrage.transactions.forEach(tx => {
 		txs.push({
 			type: tx.type,
 			market: tx.market,
@@ -24,6 +25,6 @@ exports.logArbitrage = arbitrage => {
 			profitPercentage: arbitrage.profitPercentage,
 			date: arbitrage.date,
 		});
-	}
-	console.table(txs);
+	});
+	// console.table(txs);
 };

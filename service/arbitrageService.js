@@ -59,11 +59,11 @@ const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 	date: new Date(),
 });
 
-const calculateArbitrages = (marketPrices, minProfitPercentage, top) => {
+const calculateArbitrages = (marketPrices, minProfitPercentage, top, formatResponse) => {
 	let arbitrages = null;
 	if (marketPrices.length > 1) {
 		const sortedList = marketPrices.sort((e1, e2) => e1.price - e2.price);
-		console.log('sorted list: ', sortedList);
+		// console.log('sorted list: ', sortedList);
 
 		arbitrages = [];
 		if (top === 1) {
@@ -82,10 +82,9 @@ const calculateArbitrages = (marketPrices, minProfitPercentage, top) => {
 			}
 			arbitrages = arbitrages.sort((e1, e2) => e2.profitPerUnit - e1.profitPerUnit);
 		}
-		if (top > 1) {
-			arbitrages = arbitrages.slice(0, top);
-		}
+		if (top > 1) arbitrages = arbitrages.slice(0, top);
 	}
+	if (formatResponse && arbitrages) arbitrages = formatResponse(arbitrages);
 
 	return arbitrages;
 };

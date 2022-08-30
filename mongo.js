@@ -13,7 +13,7 @@ if (!dbUri) {
 
 const connect = async function () {
 	console.log('connecting db...');
-	const dbCon = await mongoose
+	await mongoose
 		.connect(dbUri)
 		.then(async () => {
 			console.log('database conected');

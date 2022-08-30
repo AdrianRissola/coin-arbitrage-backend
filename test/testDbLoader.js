@@ -20,9 +20,10 @@ beforeAll(async () => {
 		.connect(dbUri)
 		.then(async () => {
 			console.log('connected db for test');
-			for (const market of helper.MARKETS) {
+			const savedMarkets = [];
+			helper.MARKETS.forEach(market => {
 				const marketToSave = new Market(market);
-				await marketToSave
+				const saved = marketToSave
 					.save()
 					.then(result => {
 						console.log('TEST - saved market: ', result);
@@ -30,7 +31,10 @@ beforeAll(async () => {
 					.catch(err => {
 						console.error(err);
 					});
-			}
+				savedMarkets.push(saved);
+			});
+			await Promise.all(savedMarkets);
+
 			await Market.find()
 				.then(result => {
 					marketsDBmanager.setMarketsFromDB(result);
@@ -38,9 +42,11 @@ beforeAll(async () => {
 				.catch(err => {
 					console.error(err);
 				});
-			for (const ticker of helper.TICKERS) {
+
+			const savedTickers = [];
+			helper.TICKERS.forEach(ticker => {
 				const tickerToSave = new Ticker(ticker);
-				await tickerToSave
+				const saved = tickerToSave
 					.save()
 					.then(result => {
 						console.log('TEST - ticker market: ', result);
@@ -49,7 +55,10 @@ beforeAll(async () => {
 					.catch(err => {
 						console.error(err);
 					});
-			}
+				savedTickers.push(saved);
+			});
+			await Promise.all(savedTickers);
+
 			await Ticker.find()
 				.then(result => {
 					marketsDBmanager.setAvailableTickers(result);

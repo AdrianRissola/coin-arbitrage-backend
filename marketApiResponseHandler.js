@@ -4,19 +4,12 @@ exports.getPriceByMarketAndTicker = (pathToPrice, marketTickerName, marketPriceR
 	let price = null;
 	if (marketPriceResult) {
 		price = marketPriceResult;
-		// for (let field of pathToPrice) {
-		// 	if (!price) break;
-		// 	if (field === '${ticker}') field = field.replace('${ticker}', marketTickerName);
-		// 	price = price[field];
-		// }
-
 		pathToPrice.some(fieldPath => {
 			let field = fieldPath;
 			if (fieldPath === '${ticker}') field = fieldPath.replace('${ticker}', marketTickerName);
 			price = price[field];
 			return !price;
 		});
-		// console.log("PRICE: ", price)
 	}
 
 	const priceNumber = Number(price);
