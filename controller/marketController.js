@@ -19,6 +19,18 @@ exports.getAllMarkets = (request, response) => {
 		});
 };
 
+exports.getAllMarketTickers = (request, response) => {
+	marketService
+		.getAllMarketTickers(request.params.ticker)
+		.then(marketTickers => {
+			console.log('marketTickers: ', marketTickers);
+			response.json(marketTickers);
+		})
+		.catch(err => {
+			console.error(err);
+		});
+};
+
 exports.getAllPricesByTicker = (request, response) => {
 	console.log('request.params.ticker: ', request.params.ticker);
 	marketService.getAllPricesByTicker(request.params.ticker).then(result => {
@@ -56,6 +68,23 @@ exports.getTickerByMarket = (request, response, next) => {
 			});
 	}
 };
+
+// exports.getAllMarketTickers = (request, response, next) => {
+// 	console.log('request.params.market: ', request.params.market);
+// 	console.log('request.params.ticker: ', request.params.ticker);
+
+// 	if (isValidMarketAndTicker(request.params.market, request.params.ticker, next)) {
+// 		marketService
+// 			.getTickerByMarket(request.params.market, request.params.ticker.toUpperCase())
+// 			.then(result => {
+// 				console.log('ticker: ', result);
+// 				response.json(result);
+// 			})
+// 			.catch(error => {
+// 				next(error);
+// 			});
+// 	}
+// };
 
 const isValidMarketRequest = market => {
 	let isValidTicker = true;

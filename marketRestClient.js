@@ -31,6 +31,7 @@ const getTickerByMarket = async (market, marketTickerName) => {
 				}
 			});
 	}
+	result.marketName = market.name;
 	return result;
 };
 

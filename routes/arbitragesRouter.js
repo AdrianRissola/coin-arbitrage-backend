@@ -8,6 +8,8 @@ const summary = require('../summary');
 
 router.get('/coin-arbitrage/crypto/markets', marketController.getAllMarkets);
 
+router.get('/coin-arbitrage/crypto/markets/:ticker', marketController.getAllMarketTickers);
+
 router.get(
 	'/coin-arbitrage/crypto/markets/tickers/:ticker/prices',
 	marketController.getAllPricesByTicker

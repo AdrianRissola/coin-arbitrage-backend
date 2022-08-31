@@ -11,7 +11,7 @@ if (!dbUri) {
 	console.error('.env file is mandatory');
 }
 
-const connect = async function () {
+const connect = async () => {
 	console.log('connecting db...');
 	await mongoose
 		.connect(dbUri)
@@ -41,7 +41,7 @@ const connect = async function () {
 		});
 };
 
-const exec = (async function () {
+const exec = (async () => {
 	await connect();
 })();
 

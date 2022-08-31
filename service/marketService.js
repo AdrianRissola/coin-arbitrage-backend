@@ -12,6 +12,25 @@ const getTickerByMarket = async (marketName, ticker) => {
 	return result.data;
 };
 
+const getAllMarketTickers = async ticker => {
+	const markets = marketsDBmanager.getAllMarkets();
+	let responses = [];
+	markets.forEach(market => {
+		const marketTickerName = marketsDBmanager.getMarketTickerName(market.name, ticker);
+		const marketTickerResponse = marketRestClient.getTickerByMarket(market, marketTickerName);
+		responses.push(marketTickerResponse);
+	});
+	responses = await Promise.all(responses);
+	console.log('getAllMarketTickers: ', responses);
+
+	const marketToTicker = {};
+	responses.forEach(response => {
+		marketToTicker[response.marketName] = response.data;
+	});
+
+	return marketToTicker;
+};
+
 const getAllPricesByTicker = async ticker => {
 	const markets = marketsDBmanager.getAllMarketsByTicker(ticker);
 	let marketPrices = [];
@@ -58,4 +77,5 @@ module.exports = {
 	getTickerByMarket,
 	getAllPricesByTicker,
 	saveNewMarket,
+	getAllMarketTickers,
 };
