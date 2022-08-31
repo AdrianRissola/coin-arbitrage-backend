@@ -5,7 +5,7 @@ let refreshArbitrageChannelIntervalId = null;
 
 const { env } = process;
 const allowedOrigins =
-	env.NODE_ENV !== 'PRODUCTION'
+	env.NODE_ENV !== 'production'
 		? JSON.parse(env.LOCAL_ALLOWED_ORIGINS)
 		: JSON.parse(env.PROD_ALLOWED_ORIGINS);
 
