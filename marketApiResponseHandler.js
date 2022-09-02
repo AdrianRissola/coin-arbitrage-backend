@@ -22,6 +22,8 @@ exports.getPriceByMarketAndTicker = (pathToPrice, marketTickerName, marketPriceR
 	return priceNumber;
 };
 
+exports.extractChannelId = () => {};
+
 //     marketToPrice = {
 //         BITFINEX: (marketPriceResult) => marketPriceResult.data[6],
 //         BINANCE: (marketPriceResult) => marketPriceResult.data.price,

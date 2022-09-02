@@ -1,4 +1,5 @@
 const webSocketServerService = require('./service/webSocketServerService');
+const webSocketClientService = require('./service/webSocketClientService');
 
 let refreshPriceMarketChannelIntervalId = null;
 let refreshArbitrageChannelIntervalId = null;
@@ -59,36 +60,39 @@ exports.onRequest = request => {
 
 			const result = validateRequest(message.utf8Data);
 			if (result.isValid) {
+				await webSocketClientService.openAndSend({ tickers: [result.jsonData.ticker] });
+				let connectingMarkets = true;
+
 				if (result.jsonData.channel === 'prices' || result.jsonData.channel === 'all') {
 					refreshPriceMarketChannelIntervalId = setInterval(async () => {
 						const marketPricesDto = await webSocketServerService.streamMarketPrices(
 							result.jsonData.markets,
 							result.jsonData.ticker
 						);
-						const response = {
-							channel: 'prices',
-							marketPrices: marketPricesDto,
-						};
-						if (!response.marketPrices || response.marketPrices.length === 0) {
+						const response = {};
+						response.channel = 'prices';
+						if (!marketPricesDto || Object.keys(marketPricesDto).length === 0) {
 							response.message = 'Market price service is not available';
 							clearInterval(refreshPriceMarketChannelIntervalId);
 						}
+						response.marketPrices = marketPricesDto;
 						connection.sendUTF(JSON.stringify(response));
 					}, 1000);
 				}
 
 				if (result.jsonData.channel === 'arbitrages' || result.jsonData.channel === 'all') {
 					refreshArbitrageChannelIntervalId = setInterval(async () => {
-						const response = await webSocketServerService.streamArbitrages(
+						const arbitResponse = await webSocketServerService.streamArbitrages(
 							result.jsonData.markets,
 							result.jsonData.ticker
 						);
-						if (!response.arbitrage) {
-							response.message = 'Arbitrage service is not available';
-							clearInterval(refreshArbitrageChannelIntervalId);
+						if (!arbitResponse.arbitrages) {
+							connectingMarkets = false;
+							arbitResponse.message = 'Arbitrage service is not available';
+							// clearInterval(refreshArbitrageChannelIntervalId);
 						}
-						response.channel = 'arbitrages';
-						connection.sendUTF(JSON.stringify(response));
+						arbitResponse.channel = 'arbitrages';
+						connection.sendUTF(JSON.stringify(arbitResponse));
 					}, 1000);
 				}
 			} else {

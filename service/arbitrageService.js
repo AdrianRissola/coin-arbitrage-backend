@@ -20,17 +20,6 @@ const getMarketPrices = async (marketNames, ticker) => {
 	marketPrices = await Promise.all(marketPrices);
 	marketPrices = marketPrices.filter(marketPrice => !!marketPrice);
 
-	// for (let i = 0; i < markets.length; i += 1) {
-	// 	const marketPrice = await platforms.getMarketPrice(
-	// 		markets[i],
-	// 		markets[i].availableTickersToMarketTickers[ticker.toUpperCase()]
-	// 	);
-	// 	if (marketPrice) {
-	// 		console.log('adding to arbitrage list: ', markets[i].name, ' ', ticker);
-	// 		marketPrices.push(marketPrice);
-	// 	}
-	// }
-
 	return marketPrices;
 };
 
@@ -61,7 +50,9 @@ const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 
 const calculateArbitrages = (marketPrices, minProfitPercentage, top, formatResponse) => {
 	let arbitrages = null;
+	let ticker = null;
 	if (marketPrices.length > 1) {
+		ticker = marketPrices[0].ticker;
 		const sortedList = marketPrices.sort((e1, e2) => e1.price - e2.price);
 		// console.log('sorted list: ', sortedList);
 

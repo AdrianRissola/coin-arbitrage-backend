@@ -5,13 +5,15 @@ const arbitrageService = require('./arbitrageService');
 exports.streamMarketPrices = async (markets, ticker) => {
 	const marketTickersStream = marketWebSocketClient.getMarketTickerStream(markets, ticker);
 	const marketPricesStreamDto = dtoConverter.toMarketPricesStreamDto(marketTickersStream);
-	return marketPricesStreamDto;
+	const tickerToMarketPrices = {};
+	tickerToMarketPrices[ticker.toUpperCase()] = marketPricesStreamDto;
+	return tickerToMarketPrices;
 };
 
 exports.streamArbitrages = async (markets, ticker) => {
 	const marketTickersStream = marketWebSocketClient.getMarketTickerStream(markets, ticker);
 	const marketPrices = [];
-	let arbitrage = null;
+	let arbitrages = null;
 	if (marketTickersStream) {
 		Object.keys(marketTickersStream).forEach(host => {
 			if (marketTickersStream[host].connected)
@@ -21,9 +23,10 @@ exports.streamArbitrages = async (markets, ticker) => {
 					ticker: marketTickersStream[host].data.market.tickerRequest,
 				});
 		});
-		arbitrage = arbitrageService.calculateArbitrages(marketPrices, null, null, arbitrages => {
+		arbitrages = arbitrageService.calculateArbitrages(marketPrices, null, null, arbits => {
+			const ticketToArbitrages = {};
 			const arbitragesMap = {};
-			arbitrages.forEach(arbit => {
+			arbits.forEach(arbit => {
 				const marketName1 = arbit.transactions[0].market;
 				const marketName2 = arbit.transactions[1].market;
 				const marketNames =
@@ -32,7 +35,8 @@ exports.streamArbitrages = async (markets, ticker) => {
 						: [marketName2, marketName1];
 				arbitragesMap[`${marketNames[0]}-${marketNames[1]}`] = arbit;
 			});
-			return arbitragesMap;
+			ticketToArbitrages[ticker.toUpperCase()] = arbitragesMap;
+			return ticketToArbitrages;
 		});
 	}
 
@@ -44,5 +48,5 @@ exports.streamArbitrages = async (markets, ticker) => {
 		else disconnectedMarkets.push(`${host} - ${websocketConnections[host].closeDescription}`);
 	});
 
-	return { arbitrage, connectedMarkets, disconnectedMarkets };
+	return { arbitrages, connectedMarkets, disconnectedMarkets };
 };

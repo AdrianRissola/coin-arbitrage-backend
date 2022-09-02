@@ -7,9 +7,12 @@ const logHelper = require('./logHelper');
 const client = new WebSocketClient();
 const webSocketConnections = {};
 const marketTickerStream = {};
+const hostToChannelId = {};
 let marketsToConnect = null;
+let currentTickerSubscription = null;
 
-// const binanceWebsocketUnubscribeRequest = {
+// const binanceWebsocketUnubscribeRequest =
+// {
 //     "method": "UNSUBSCRIBE",
 //     "params":
 //     [ "btcusdt@ticker" ],
@@ -35,22 +38,53 @@ const sendPing = connection => {
 	}
 };
 
-client.on('connect', connection => {
-	sendPing(connection);
+const isConnected = market =>
+	webSocketConnections[market.com.api.websocket.host]
+		? webSocketConnections[market.com.api.websocket.host].connected
+		: false;
 
-	console.log(`Connection OK: ${connection.socket.servername}`);
-
+const updateMarketsToConnect = connection => {
 	const market = marketsToConnect.find(
 		marketToConnect => marketToConnect.com.api.websocket.host === connection.socket.servername
 	);
 	market.connected = true;
-	const unconnectedMarket = marketsToConnect.find(marketToConnect => !marketToConnect.connected);
+	return market;
+};
+
+const subscribe = market => {
+	const ticker = market.tickerRequest.toUpperCase();
+	const tickerToSubscribe = market.com.api.websocket.availableTickersToMarketTickers[ticker];
+
+	if (tickerToSubscribe) {
+		const tickerRequest = market.com.api.websocket.tickerRequest.replace(
+			'${ticker}',
+			tickerToSubscribe
+		);
+		const connection = webSocketConnections[market.com.api.websocket.host];
+		console.log(`SUBSCRIBING ${market.com.api.websocket.host}: ${tickerRequest}`);
+		connection.sendUTF(tickerRequest);
+		connection.currentTickerSubscription = ticker;
+	} else {
+		console.log(`${market.com.api.websocket.host} not supports ${ticker}`);
+	}
+};
+
+client.on('connect', connection => {
+	webSocketConnections[connection.socket.servername] = connection;
+
+	sendPing(connection);
+
+	console.log(`Connection OK: ${connection.socket.servername}`);
+
+	const market = updateMarketsToConnect(connection);
+	// const unconnectedMarket = marketsToConnect.find(marketToConnect => !marketToConnect.connected);
+	const unconnectedMarket = marketsToConnect.find(
+		marketToConnect => !isConnected(marketToConnect)
+	);
 	if (unconnectedMarket) {
 		const { host } = unconnectedMarket.com.api.websocket;
 		client.connect(unconnectedMarket.com.api.websocket.url.replace('${host}', host));
 	}
-
-	webSocketConnections[connection.socket.servername] = connection;
 
 	connection.on('error', error => {
 		if (marketTickerStream[connection.socket.servername])
@@ -80,6 +114,17 @@ client.on('connect', connection => {
 			);
 
 			try {
+				if (
+					foundMmarket.com.api.websocket.pathToChannelId &&
+					foundMmarket.com.api.websocket.pathToChannelId.length > 0
+				)
+					hostToChannelId[connection.socket.servername] =
+						marketApiResponseHandler.getPriceByMarketAndTicker(
+							foundMmarket.com.api.websocket.pathToChannelId,
+							null,
+							tickerResult
+						);
+
 				price = marketApiResponseHandler.getPriceByMarketAndTicker(
 					foundMmarket.com.api.websocket.pathToPrice,
 					foundMmarket.com.api.websocket.availableTickersToMarketTickers[
@@ -94,7 +139,7 @@ client.on('connect', connection => {
 				marketTickerStream[connection.socket.servername].data = {};
 				marketTickerStream[connection.socket.servername].data.market = foundMmarket;
 				marketTickerStream[connection.socket.servername].data.ticker =
-					foundMmarket.tickerRequest;
+					connection.currentTickerSubscription;
 				marketTickerStream[connection.socket.servername].data.marketTicker = tickerResult;
 				marketTickerStream[connection.socket.servername].data.price = price;
 				marketTickerStream[connection.socket.servername].data.timestamp = new Date();
@@ -106,12 +151,7 @@ client.on('connect', connection => {
 		}
 	});
 
-	const ticker = market.tickerRequest.toUpperCase();
-	const tickerRequest = market.com.api.websocket.tickerRequest.replace(
-		'${ticker}',
-		market.com.api.websocket.availableTickersToMarketTickers[ticker]
-	);
-	connection.sendUTF(tickerRequest);
+	subscribe(market, connection);
 });
 
 exports.getMarketTickerStream = (marketsNames, ticker) => {
@@ -144,7 +184,51 @@ const isConnecting = market => {
 	return connecting;
 };
 
+const changeTickerSubscription = (markets, tickers) => {
+	marketsToConnect.forEach(market => {
+		console.log(market.name);
+		let tickerToUnsubscribe =
+			market.com.api.websocket.availableTickersToMarketTickers[
+				currentTickerSubscription.toUpperCase()
+			];
+		if (tickerToUnsubscribe) {
+			const unsubscribeRequest = market.com.api.websocket.unsubscribeTickerRequest
+				.replace('${ticker}', tickerToUnsubscribe)
+				.replace('${channelId}', hostToChannelId[market.com.api.websocket.host]);
+			console.log(`UNSUBSCRIBING ${market.com.api.websocket.host}: ${unsubscribeRequest}`);
+			webSocketConnections[market.com.api.websocket.host].sendUTF(unsubscribeRequest);
+		}
+		market.tickerRequest = tickers[0];
+		subscribe(market);
+	});
+
+	// markets.forEach(market => {
+	// 	console.log(market.name);
+	// 	let tickerToUnsubscribe =
+	// 		market.com.api.websocket.availableTickersToMarketTickers[
+	// 			currentTickerSubscription.toUpperCase()
+	// 		];
+	// 	if (tickerToUnsubscribe) {
+	// 		const unsubscribeRequest = market.com.api.websocket.unsubscribeTickerRequest
+	// 			.replace('${ticker}', tickerToUnsubscribe)
+	// 			.replace('${channelId}', hostToChannelId[market.com.api.websocket.host]);
+	// 		console.log(`UNSUBSCRIBING ${market.com.api.websocket.host}: ${unsubscribeRequest}`);
+	// 		webSocketConnections[market.com.api.websocket.host].sendUTF(unsubscribeRequest);
+	// 	}
+	// 	market.tickerRequest = tickers[0];
+	// 	subscribe(market);
+	// });
+};
+
 exports.connectAndSend = async (markets, tickers) => {
+	if (
+		currentTickerSubscription &&
+		currentTickerSubscription.toUpperCase() !== tickers[0].toUpperCase()
+	) {
+		changeTickerSubscription(markets, tickers);
+		// changeSubscription;
+	}
+	currentTickerSubscription = tickers[0];
 	marketsToConnect = markets;
 	marketsToConnect.forEach(marketToConnect => {
 		const market = marketToConnect;

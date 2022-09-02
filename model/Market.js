@@ -8,14 +8,21 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'ETH-USD': String,
 	'ETH-USDT': String,
 	'ETH-BTC': String,
+	'ADA-USDT': String,
+	'LTC-USDT': String,
+	'XRP-USDT': String,
+	'SOL-USDT': String,
+	'DOGE-USDT': String,
 });
 
 const websocketSchema = new mongoose.Schema({
 	host: String,
 	url: String,
 	tickerRequest: String,
+	unsubscribeTickerRequest: String,
 	availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
 	pathToPrice: [],
+	pathToChannelId: [],
 	pingFrequencyInSeconds: Number,
 });
 
