@@ -106,6 +106,14 @@ exports.setAvailableTickers = tickers => {
 
 exports.getAllAvailableTickers = () => availableTickers;
 
+exports.getAllAvailableTickersByApi = api => {
+	const tickerNames = [];
+	availableTickers.forEach(at => {
+		if (at[api]) tickerNames.push(at.name);
+	});
+	return tickerNames;
+};
+
 const hasAtLeastOneTicker = (market, tickers) =>
 	tickers.some(
 		ticker => market.com.api.websocket.availableTickersToMarketTickers[ticker.toUpperCase()]

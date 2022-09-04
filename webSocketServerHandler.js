@@ -1,5 +1,6 @@
 const webSocketServerService = require('./service/webSocketServerService');
 const webSocketClientService = require('./service/webSocketClientService');
+const marketsDBmanager = require('./marketsDBmanager');
 
 let refreshPriceMarketChannelIntervalId = null;
 let refreshArbitrageChannelIntervalId = null;
@@ -48,7 +49,12 @@ exports.onRequest = request => {
 
 	const connection = request.accept(null, request.origin);
 
-	connection.sendUTF(JSON.stringify({ response: `Hello ${request.origin}` }));
+	connection.sendUTF(
+		JSON.stringify({
+			response: `${request.origin} welcome to real-time monitor`,
+			availableTickers: marketsDBmanager.getAllAvailableTickersByApi('websocket'),
+		})
+	);
 
 	console.log(`${new Date()} ${request.origin} Connection accepted.`);
 

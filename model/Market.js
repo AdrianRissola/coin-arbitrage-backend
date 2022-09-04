@@ -13,6 +13,14 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'XRP-USDT': String,
 	'SOL-USDT': String,
 	'DOGE-USDT': String,
+	'TRX-USDT': String,
+	'DOT-BTC': String,
+	'ADA-BTC': String,
+	'LTC-BTC': String,
+	'XRP-BTC': String,
+	'DOGE-BTC': String,
+	'SOL-BTC': String,
+	'TRX-BTC': String,
 });
 
 const websocketSchema = new mongoose.Schema({
