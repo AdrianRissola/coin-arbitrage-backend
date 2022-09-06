@@ -86,32 +86,21 @@ exports.getTickerByMarket = (request, response, next) => {
 // 	}
 // };
 
-const isValidMarketRequest = market => {
-	let isValidTicker = true;
-	let marketTickers = null;
-
-	if (market.availableTickersToMarketTickers) {
-		marketTickers = Object.keys(market.availableTickersToMarketTickers);
-		isValidTicker = !marketTickers.some(ticker => !availableTickers.TICKERS[ticker]);
-	}
-
-	return (
-		!!market &&
-		!!marketTickers &&
-		!!marketTickers.length > 0 &&
-		!!isValidTicker &&
-		!!market.name &&
-		!!market.availableTickersToMarketTickers &&
-		!!market.com &&
-		!!market.com.api &&
-		!!market.com.api.rest &&
-		!!market.com.api.rest.base &&
-		!!market.com.api.rest.base.startsWith('https://') &&
-		!!market.com.api.rest.tickerPath &&
-		!!market.com.api.rest.pathToPrice &&
-		!!market.com.api.rest.pathToPrice.length > 0
-	);
-};
+const isValidMarketRequest = market =>
+	!!market &&
+	// !!marketTickers &&
+	// !!marketTickers.length > 0 &&
+	// !!isValidTicker &&
+	!!market.name &&
+	!!market.availableTickersToMarketTickers &&
+	!!market.com &&
+	!!market.com.api &&
+	!!market.com.api.rest &&
+	!!market.com.api.rest.base &&
+	!!market.com.api.rest.base.startsWith('https://') &&
+	!!market.com.api.rest.tickerPath &&
+	!!market.com.api.rest.pathToPrice &&
+	!!market.com.api.rest.pathToPrice.length > 0;
 
 exports.saveMarket = async (request, response, next) => {
 	let result = null;

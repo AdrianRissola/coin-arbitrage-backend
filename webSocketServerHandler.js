@@ -67,7 +67,6 @@ exports.onRequest = request => {
 			const result = validateRequest(message.utf8Data);
 			if (result.isValid) {
 				await webSocketClientService.openAndSend({ tickers: [result.jsonData.ticker] });
-				let connectingMarkets = true;
 
 				if (result.jsonData.channel === 'prices' || result.jsonData.channel === 'all') {
 					refreshPriceMarketChannelIntervalId = setInterval(async () => {
@@ -93,9 +92,7 @@ exports.onRequest = request => {
 							result.jsonData.ticker
 						);
 						if (!arbitResponse.arbitrages) {
-							connectingMarkets = false;
 							arbitResponse.message = 'Arbitrage service is not available';
-							// clearInterval(refreshArbitrageChannelIntervalId);
 						}
 						arbitResponse.channel = 'arbitrages';
 						connection.sendUTF(JSON.stringify(arbitResponse));

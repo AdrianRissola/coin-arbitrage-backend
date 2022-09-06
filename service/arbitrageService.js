@@ -50,9 +50,7 @@ const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 
 const calculateArbitrages = (marketPrices, minProfitPercentage, top, formatResponse) => {
 	let arbitrages = null;
-	let ticker = null;
 	if (marketPrices.length > 1) {
-		ticker = marketPrices[0].ticker;
 		const sortedList = marketPrices.sort((e1, e2) => e1.price - e2.price);
 		// console.log('sorted list: ', sortedList);
 
