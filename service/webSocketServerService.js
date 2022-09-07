@@ -10,6 +10,24 @@ exports.streamMarketPrices = async (markets, ticker) => {
 	return tickerToMarketPrices;
 };
 
+const formatResponse = (arbitrages, ticker) => {
+	const ticketToArbitrages = {};
+	const arbitragesMap = {};
+	arbitrages.forEach(arbit => {
+		const marketName1 = arbit.transactions[0].market;
+		const marketName2 = arbit.transactions[1].market;
+		const marketNames =
+			marketName1 < marketName2 ? [marketName1, marketName2] : [marketName2, marketName1];
+		arbitragesMap[`${marketNames[0]}-${marketNames[1]}`] = arbit;
+	});
+	console.log(arbitragesMap);
+	console.log('//////////////////////////');
+	ticketToArbitrages[ticker.toUpperCase()] = arbitragesMap;
+	return ticketToArbitrages;
+};
+
+const priceComparator = (priceA, priceB) => priceA <= priceB;
+
 exports.streamArbitrages = async (markets, ticker) => {
 	const marketTickersStream = marketWebSocketClient.getMarketTickerStream(markets, ticker);
 	const marketPrices = [];
@@ -23,21 +41,13 @@ exports.streamArbitrages = async (markets, ticker) => {
 					ticker: marketTickersStream[host].data.market.tickerRequest,
 				});
 		});
-		arbitrages = arbitrageService.calculateArbitrages(marketPrices, null, null, arbits => {
-			const ticketToArbitrages = {};
-			const arbitragesMap = {};
-			arbits.forEach(arbit => {
-				const marketName1 = arbit.transactions[0].market;
-				const marketName2 = arbit.transactions[1].market;
-				const marketNames =
-					marketName1 < marketName2
-						? [marketName1, marketName2]
-						: [marketName2, marketName1];
-				arbitragesMap[`${marketNames[0]}-${marketNames[1]}`] = arbit;
-			});
-			ticketToArbitrages[ticker.toUpperCase()] = arbitragesMap;
-			return ticketToArbitrages;
-		});
+		arbitrages = arbitrageService.calculateArbitrages(
+			marketPrices,
+			null,
+			null,
+			formatResponse,
+			priceComparator
+		);
 	}
 
 	const websocketConnections = marketWebSocketClient.getWebSocketConnections();
