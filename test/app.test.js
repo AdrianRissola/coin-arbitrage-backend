@@ -2,10 +2,9 @@ require('./testDbLoader');
 const mongoose = require('mongoose');
 const supertest = require('supertest');
 const helper = require('./testHelper');
-const app = require('../index');
+const { app } = require('../index');
 
 const api = supertest(app);
-// const jest = require("jest")
 
 jest.setTimeout(90000);
 
