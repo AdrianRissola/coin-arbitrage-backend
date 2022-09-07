@@ -70,13 +70,10 @@ const calculateArbitrages = (
 		} else {
 			for (let i = 0; i < sortedList.length; i += 1) {
 				for (let j = i + 1; j < sortedList.length; j += 1) {
-					console.log(sortedList[i].platform);
-					console.log(sortedList[j].platform);
 					const profitPercentage = percentage(sortedList[i].price, sortedList[j].price);
 					if (
 						(!minProfitPercentage || profitPercentage >= minProfitPercentage) &&
 						currentPriceComparator(sortedList[i].price, sortedList[j].price)
-						// sortedList[i].price <= sortedList[j].price
 					)
 						arbitrages.push(buildArbitrage(sortedList[i], sortedList[j]));
 				}

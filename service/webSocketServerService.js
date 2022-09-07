@@ -20,8 +20,6 @@ const formatResponse = (arbitrages, ticker) => {
 			marketName1 < marketName2 ? [marketName1, marketName2] : [marketName2, marketName1];
 		arbitragesMap[`${marketNames[0]}-${marketNames[1]}`] = arbit;
 	});
-	console.log(arbitragesMap);
-	console.log('//////////////////////////');
 	ticketToArbitrages[ticker.toUpperCase()] = arbitragesMap;
 	return ticketToArbitrages;
 };
