@@ -21,6 +21,18 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'DOGE-BTC': String,
 	'SOL-BTC': String,
 	'TRX-BTC': String,
+	'MATIC-USDT': String,
+	'MATIC-BTC': String,
+	'UNI-USDT': String,
+	'UNI-BTC': String,
+	'XMR-USDT': String,
+	'XMR-BTC': String,
+	'XLM-USDT': String,
+	'XLM-BTC': String,
+	'EOS-USDT': String,
+	'EOS-BTC': String,
+	'MIOTA-USDT': String,
+	'MIOTA-BTC': String,
 });
 
 const websocketSchema = new mongoose.Schema({

@@ -6,7 +6,8 @@ const toMarketPriceStreamDto = marketTickerStream => ({
 exports.toMarketPricesStreamDto = marketTickersStream => {
 	const marketTickersStreamDto = [];
 	Object.keys(marketTickersStream).forEach(key => {
-		marketTickersStreamDto.push(toMarketPriceStreamDto(marketTickersStream[key]));
+		if (marketTickersStream[key].data.price)
+			marketTickersStreamDto.push(toMarketPriceStreamDto(marketTickersStream[key]));
 	});
 	return marketTickersStreamDto;
 };
