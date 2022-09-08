@@ -1,7 +1,6 @@
 const marketService = require('../service/marketService');
 const marketsDBmanager = require('../marketsDBmanager');
 const errorHelper = require('../errorHelper');
-const availableTickers = require('../availableTickers');
 
 exports.getAllTickers = (request, response) => {
 	response.json(marketsDBmanager.getAllAvailableTickers());
@@ -68,23 +67,6 @@ exports.getTickerByMarket = (request, response, next) => {
 			});
 	}
 };
-
-// exports.getAllMarketTickers = (request, response, next) => {
-// 	console.log('request.params.market: ', request.params.market);
-// 	console.log('request.params.ticker: ', request.params.ticker);
-
-// 	if (isValidMarketAndTicker(request.params.market, request.params.ticker, next)) {
-// 		marketService
-// 			.getTickerByMarket(request.params.market, request.params.ticker.toUpperCase())
-// 			.then(result => {
-// 				console.log('ticker: ', result);
-// 				response.json(result);
-// 			})
-// 			.catch(error => {
-// 				next(error);
-// 			});
-// 	}
-// };
 
 const isValidMarketRequest = market => {
 	const availableRestTickers = marketsDBmanager.getAllAvailableTickersByApi('rest');

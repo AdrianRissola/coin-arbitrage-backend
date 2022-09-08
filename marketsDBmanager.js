@@ -19,11 +19,34 @@ const getMarketByName = name => {
 	return marketFound;
 };
 
-exports.getMarketsByNames = names => {
+const supports = (market, api) => {
+	let result = false;
+	if (api === 'rest')
+		result =
+			market.com &&
+			market.com.api &&
+			market.com.api.rest &&
+			market.com.api.rest.base &&
+			market.com.api.rest.tickerPath &&
+			market.com.api.rest.pathToPrice;
+	if (api === 'websocket')
+		result =
+			market.com &&
+			market.com.api &&
+			market.com.api.websocket &&
+			market.com.api.websocket.host &&
+			market.com.api.websocket.url &&
+			market.com.api.websocket.tickerRequest &&
+			market.com.api.websocket.availableTickersToMarketTickers &&
+			market.com.api.websocket.pathToPrice;
+	return result;
+};
+
+exports.getMarketsByNames = async (names, api) => {
 	const markets = [];
 	for (let i = 0; i < names.length; i += 1) {
 		const foundMarket = getMarketByName(names[i]);
-		if (foundMarket) markets.push(foundMarket);
+		if (foundMarket && supports(foundMarket, api)) markets.push(foundMarket);
 	}
 	return markets;
 };
@@ -88,7 +111,7 @@ exports.getMarketTickerName = (marketName, ticker) => {
 	return markets;
 };
 
-exports.getAllMarkets = () => marketsFromDB;
+exports.getAllMarkets = api => marketsFromDB.filter(market => supports(market, api));
 
 exports.getAllMarketsByTicker = ticker => {
 	const markets = [];

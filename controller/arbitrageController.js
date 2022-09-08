@@ -1,37 +1,40 @@
 const arbitrageService = require('../service/arbitrageService');
+const marketService = require('../service/marketService');
 const Arbitrage = require('../model/Arbitrage');
 const errorHelper = require('../errorHelper');
 
-exports.getArbitrages = (request, response, next) => {
-	console.log('request.query: ', request.query);
-	let markets = null;
-
+const validateArbitrageRequest = (request, next) => {
+	let isValid = true;
 	if (request.query.markets) {
-		markets = request.query.markets.split(',');
-		if (!!markets && markets.length === 1) {
+		const markets = request.query.markets.split(',');
+		if (!!markets && markets.length < 2) {
+			isValid = false;
 			next(errorHelper.errors.BAD_REQUEST('more than one market is mandatory'));
 		}
 	}
-
 	if (!request.query.ticker) {
 		next(errorHelper.errors.BAD_REQUEST('ticker is mandatory'));
+		isValid = false;
 	}
+	return isValid;
+};
 
-	arbitrageService
-		.getArbitrages(
-			markets,
-			request.query.ticker,
+exports.getArbitrages = async (request, response, next) => {
+	if (validateArbitrageRequest(request, next)) {
+		const markets = request.query.markets.split(',');
+		const marketPrices = await marketService
+			.getMarketPrices(markets, request.query.ticker)
+			.catch(err => {
+				console.error(err);
+				next(err);
+			});
+		const arbitrages = arbitrageService.calculateArbitrages(
+			marketPrices,
 			Number(request.query.minProfitPercentage),
-			request.query.top
-		)
-		.then(result => {
-			console.log('arbitrageService.getArbitrages(): ', result);
-			response.json(result);
-		})
-		.catch(err => {
-			console.error(err);
-			next(err);
-		});
+			Number(request.query.top)
+		);
+		response.json(arbitrages);
+	}
 };
 
 exports.getAllHistoricalArbitrages = (request, response) => {

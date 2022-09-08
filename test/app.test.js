@@ -98,7 +98,7 @@ describe('test GET /coin-arbitrage/crypto/current-arbitrages', () => {
 		expect(response.body).toBeTruthy();
 	});
 
-	test('GET current-arbitrages without ticker return status 400', async () => {
+	test.only('GET current-arbitrages without ticker return status 400', async () => {
 		const response = await api.get(`/coin-arbitrage/crypto/current-arbitrages`).expect(400);
 		expect(response).not.toBe(null);
 		expect(response.body).not.toBe(null);

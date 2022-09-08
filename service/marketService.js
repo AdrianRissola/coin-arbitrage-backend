@@ -72,10 +72,32 @@ const saveNewMarket = async newMarket => {
 		});
 };
 
+const getMarketPrices = async (marketNames, ticker) => {
+	let markets = null;
+	if (!marketNames) markets = marketsDBmanager.getAllMarkets('rest');
+	else markets = await marketsDBmanager.getMarketsByNames(marketNames, 'rest');
+
+	let marketPrices = [];
+
+	markets.forEach(market => {
+		const marketPrice = marketRestClient.getMarketPrice(
+			market,
+			market.availableTickersToMarketTickers[ticker.toUpperCase()]
+		);
+		if (marketPrice) marketPrices.push(marketPrice);
+	});
+
+	marketPrices = await Promise.all(marketPrices);
+	marketPrices = marketPrices.filter(marketPrice => !!marketPrice);
+
+	return marketPrices;
+};
+
 module.exports = {
 	getAllMarkets,
 	getTickerByMarket,
 	getAllPricesByTicker,
 	saveNewMarket,
 	getAllMarketTickers,
+	getMarketPrices,
 };

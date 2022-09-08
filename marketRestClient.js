@@ -23,6 +23,7 @@ const getTickerByMarket = async (market, marketTickerName) => {
 					throw errorHelper.errors.BAD_REQUEST(`${error.message} when: GET ${url}`);
 				} else if (error.request) {
 					// The request was made but no response was received
+					console.log(`${error.message} when: GET ${url}`);
 					throw errorHelper.errors.BAD_REQUEST(error.message);
 				} else {
 					// Something happened in setting up the request that triggered an Error
@@ -31,7 +32,7 @@ const getTickerByMarket = async (market, marketTickerName) => {
 				}
 			});
 	}
-	result.marketName = market.name;
+	if (result) result.marketName = market.name;
 	return result;
 };
 

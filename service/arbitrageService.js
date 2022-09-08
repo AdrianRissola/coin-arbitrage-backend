@@ -1,27 +1,27 @@
-const platforms = require('../marketRestClient');
-const marketsDBmanager = require('../marketsDBmanager');
+// const platforms = require('../marketRestClient');
+// const marketsDBmanager = require('../marketsDBmanager');
 const logHelper = require('../logHelper');
 
-const getMarketPrices = async (marketNames, ticker) => {
-	let markets = null;
-	if (!marketNames) markets = marketsDBmanager.getAllMarkets();
-	else markets = marketsDBmanager.getMarketsByNames(marketNames);
+// const getMarketPrices = async (marketNames, ticker) => {
+// 	let markets = null;
+// 	if (!marketNames) markets = marketsDBmanager.getAllMarkets();
+// 	else markets = marketsDBmanager.getMarketsByNames(marketNames);
 
-	let marketPrices = [];
+// 	let marketPrices = [];
 
-	markets.forEach(market => {
-		const marketPrice = platforms.getMarketPrice(
-			market,
-			market.availableTickersToMarketTickers[ticker.toUpperCase()]
-		);
-		marketPrices.push(marketPrice);
-	});
+// 	markets.forEach(market => {
+// 		const marketPrice = platforms.getMarketPrice(
+// 			market,
+// 			market.availableTickersToMarketTickers[ticker.toUpperCase()]
+// 		);
+// 		marketPrices.push(marketPrice);
+// 	});
 
-	marketPrices = await Promise.all(marketPrices);
-	marketPrices = marketPrices.filter(marketPrice => !!marketPrice);
+// 	marketPrices = await Promise.all(marketPrices);
+// 	marketPrices = marketPrices.filter(marketPrice => !!marketPrice);
 
-	return marketPrices;
-};
+// 	return marketPrices;
+// };
 
 const percentage = (num1, num2) => {
 	const dif = num1 > num2 ? num1 - num2 : num2 - num1;
@@ -87,12 +87,12 @@ const calculateArbitrages = (
 	return arbitrages;
 };
 
-const getArbitrages = async (marketNames, ticker, minProfitPercentage, top) => {
-	const marketPrices = await getMarketPrices(marketNames, ticker);
-	return calculateArbitrages(marketPrices, Number(minProfitPercentage), Number(top));
-};
+// const getArbitrages = async (marketNames, ticker, minProfitPercentage, top) => {
+// 	const marketPrices = await getMarketPrices(marketNames, ticker);
+// 	return calculateArbitrages(marketPrices, Number(minProfitPercentage), Number(top));
+// };
 
 module.exports = {
-	getArbitrages,
+	// getArbitrages,
 	calculateArbitrages,
 };
