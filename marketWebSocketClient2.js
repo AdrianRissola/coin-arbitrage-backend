@@ -138,18 +138,20 @@ client.on('connect', connection => {
 					foundMmarket.com.api.websocket.pathToChannelId.length > 0
 				)
 					hostToChannelId[connection.socket.servername] =
-						marketApiResponseHandler.getPriceByMarketAndTicker(
+						marketApiResponseHandler.extractNumberFromTickerTarget(
 							foundMmarket.com.api.websocket.pathToChannelId,
-							null,
 							tickerResult
 						);
 
-				price = marketApiResponseHandler.getPriceByMarketAndTicker(
+				price = marketApiResponseHandler.extractNumberFromTickerTarget(
 					foundMmarket.com.api.websocket.pathToPrice,
-					foundMmarket.com.api.websocket.availableTickersToMarketTickers[
-						foundMmarket.tickerRequest.toUpperCase()
-					],
-					tickerResult
+					tickerResult,
+					{
+						marketTickerName:
+							foundMmarket.com.api.websocket.availableTickersToMarketTickers[
+								foundMmarket.tickerRequest.toUpperCase()
+							],
+					}
 				);
 
 				marketTickerStream[connection.socket.servername] = {};

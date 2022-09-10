@@ -59,8 +59,8 @@ const calculateArbitrages = (
 ) => {
 	const currentPriceComparator = priceComparatorCb || priceComparator;
 	let arbitrages = null;
-	const ticker = marketPrices[0] ? marketPrices[0].ticker : null;
-	if (marketPrices.length > 1) {
+	const ticker = marketPrices && marketPrices[0] ? marketPrices[0].ticker : null;
+	if (marketPrices && marketPrices.length > 1) {
 		const sortedList = marketPrices.sort((e1, e2) => e1.price - e2.price);
 
 		arbitrages = [];

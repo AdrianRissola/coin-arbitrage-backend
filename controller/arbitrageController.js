@@ -4,24 +4,25 @@ const Arbitrage = require('../model/Arbitrage');
 const errorHelper = require('../errorHelper');
 
 const validateArbitrageRequest = (request, next) => {
-	let isValid = true;
+	let hasMoreThanOneMarket = true;
 	if (request.query.markets) {
 		const markets = request.query.markets.split(',');
 		if (!!markets && markets.length < 2) {
-			isValid = false;
+			hasMoreThanOneMarket = false;
 			next(errorHelper.errors.BAD_REQUEST('more than one market is mandatory'));
 		}
 	}
+	let hasTicker = true;
 	if (!request.query.ticker) {
 		next(errorHelper.errors.BAD_REQUEST('ticker is mandatory'));
-		isValid = false;
+		hasTicker = false;
 	}
-	return isValid;
+	return (!request.query.markets || hasMoreThanOneMarket) && hasTicker;
 };
 
 exports.getArbitrages = async (request, response, next) => {
 	if (validateArbitrageRequest(request, next)) {
-		const markets = request.query.markets.split(',');
+		const markets = request.query.markets ? request.query.markets.split(',') : null;
 		const marketPrices = await marketService
 			.getMarketPrices(markets, request.query.ticker)
 			.catch(err => {

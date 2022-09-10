@@ -46,7 +46,7 @@ exports.getMarketsByNames = async (names, api) => {
 	const markets = [];
 	for (let i = 0; i < names.length; i += 1) {
 		const foundMarket = getMarketByName(names[i]);
-		if (foundMarket && supports(foundMarket, api)) markets.push(foundMarket);
+		if (foundMarket && (supports(foundMarket, api) || !api)) markets.push(foundMarket);
 	}
 	return markets;
 };
@@ -111,7 +111,7 @@ exports.getMarketTickerName = (marketName, ticker) => {
 	return markets;
 };
 
-exports.getAllMarkets = api => marketsFromDB.filter(market => supports(market, api));
+exports.getAllMarkets = api => marketsFromDB.filter(market => supports(market, api) || !api);
 
 exports.getAllMarketsByTicker = ticker => {
 	const markets = [];
@@ -137,9 +137,9 @@ exports.getAllAvailableTickersByApi = api => {
 	return tickerNames;
 };
 
-const hasAtLeastOneTicker = (market, tickers) =>
+const hasAtLeastOneTicker = (market, api, tickers) =>
 	tickers.some(
-		ticker => market.com.api.websocket.availableTickersToMarketTickers[ticker.toUpperCase()]
+		ticker => market.com.api[api].availableTickersToMarketTickers[ticker.toUpperCase()]
 	);
 
 const hasWebsocket = (market, tickers) =>
@@ -147,7 +147,8 @@ const hasWebsocket = (market, tickers) =>
 		market.com &&
 		market.com.api &&
 		market.com.api.websocket &&
-		hasAtLeastOneTicker(market, tickers) &&
+		market.com.api.websocket.availableTickersToMarketTickers &&
+		hasAtLeastOneTicker(market, 'websocket', tickers) &&
 		market.com.api.websocket.host &&
 		market.com.api.websocket.url &&
 		market.com.api.websocket.tickerRequest

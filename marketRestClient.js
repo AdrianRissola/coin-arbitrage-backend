@@ -36,6 +36,20 @@ const getTickerByMarket = async (market, marketTickerName) => {
 	return result;
 };
 
+const getTickerSeparator = market => {
+	let tickerSeparator = null;
+	if (
+		market &&
+		market.com &&
+		market.com.api &&
+		market.com.api.rest &&
+		market.com.api.rest.tickerPattern &&
+		market.com.api.rest.tickerPattern.separator
+	)
+		tickerSeparator = market.com.api.rest.tickerPattern.separator;
+	return tickerSeparator;
+};
+
 const getMarketPrice = async (market, marketTickerName) => {
 	let marketPrice = null;
 	if (market && marketTickerName) {
@@ -44,10 +58,13 @@ const getMarketPrice = async (market, marketTickerName) => {
 			marketPrice = {
 				platform: market.name,
 				ticker: marketTickerName,
-				price: marketRestClientResultHandler.getPriceByMarketAndTicker(
+				price: marketRestClientResultHandler.extractNumberFromTickerTarget(
 					market.com.api.rest.pathToPrice,
-					marketTickerName,
-					result
+					result,
+					{
+						marketTickerName,
+						tickerSeparator: getTickerSeparator(market),
+					}
 				),
 				date: new Date(),
 			};

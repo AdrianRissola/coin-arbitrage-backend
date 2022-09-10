@@ -1,38 +1,35 @@
 const errorHelper = require('./errorHelper');
 
-exports.getPriceByMarketAndTicker = (pathToPrice, marketTickerName, marketPriceResult) => {
-	let price = null;
-	if (marketPriceResult) {
-		price = marketPriceResult;
-		pathToPrice.some(fieldPath => {
+const isString = value => {
+	let isStringValue = false;
+	if (typeof value === 'string') isStringValue = true;
+	return isStringValue;
+};
+
+exports.extractNumberFromTickerTarget = (pathToNumber, tickerTarget, config) => {
+	let numberField = null;
+	if (tickerTarget) {
+		numberField = tickerTarget;
+		pathToNumber.some(fieldPath => {
 			let field = fieldPath;
-			if (fieldPath === '${ticker}') field = fieldPath.replace('${ticker}', marketTickerName);
-			price = price[field];
-			return !price;
+			if (isString(fieldPath) && fieldPath.includes('${ticker}.'))
+				field = fieldPath.replace(
+					fieldPath,
+					config.marketTickerName.split(config.tickerSeparator)[fieldPath.split('.')[1]]
+				);
+			else if (fieldPath === '${ticker}')
+				field = fieldPath.replace('${ticker}', config.marketTickerName);
+			numberField = numberField[field];
+			return !numberField;
 		});
 	}
 
-	const priceNumber = Number(price);
+	const number = Number(numberField);
 
-	if (!price || !priceNumber)
+	if (!numberField || !number)
 		throw errorHelper.errors.BAD_REQUEST(
-			`Error when try to extract price from market ticker using pathToPrice: ${pathToPrice}`
+			`Error when try to extract field from target using pathToField: ${pathToNumber}`
 		);
 
-	return priceNumber;
+	return number;
 };
-
-exports.extractChannelId = () => {};
-
-//     marketToPrice = {
-//         BITFINEX: (marketPriceResult) => marketPriceResult.data[6],
-//         BINANCE: (marketPriceResult) => marketPriceResult.data.price,
-//         COINBASE: (marketPriceResult) => marketPriceResult.data.price,
-//         BITTREX: (marketPriceResult) => marketPriceResult.data.lastTradeRate,
-//         POLONIEX: (marketPriceResult) => marketPriceResult.data[marketTicker].last,
-//         KRAKEN: (marketPriceResult) =>  marketPriceResult.data.result[marketTicker].c[0],
-//         OKEX: (marketPriceResult) => marketPriceResult.data.data[0].last,
-//         BITMEX: (marketPriceResult) => marketPriceResult.data[0].price,
-//         BITSTAMP: (marketPriceResult) => marketPriceResult.data.last,
-//         HITBTC: (marketPriceResult) => marketPriceResult.data[marketTicker].last
-//     }

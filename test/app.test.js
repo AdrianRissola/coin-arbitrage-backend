@@ -62,6 +62,30 @@ describe('test GET /coin-arbitrage/crypto/markets/:market/tickers/:ticker', () =
 });
 
 describe('test GET /coin-arbitrage/crypto/current-arbitrages', () => {
+	test('GET all current-arbitrages for all available markets - with status 200', async () => {
+		const response = await api
+			.get(`/coin-arbitrage/crypto/current-arbitrages?ticker=btc-usdt`)
+			.expect(200);
+		expect(response).not.toBe(null);
+		expect(response.body).not.toBe(null);
+		expect(response).toBeTruthy();
+		expect(response.body).toBeTruthy();
+		expect(response.body.length).toBeTruthy();
+	}, 20000);
+
+	test('GET all current-arbitrages for 2 markets - with status 200', async () => {
+		const response = await api
+			.get(
+				`/coin-arbitrage/crypto/current-arbitrages?ticker=btc-usdt&markets=binance,bitfinex`
+			)
+			.expect(200);
+		expect(response).not.toBe(null);
+		expect(response.body).not.toBe(null);
+		expect(response).toBeTruthy();
+		expect(response.body).toBeTruthy();
+		expect(response.body.length).toBeTruthy();
+	}, 20000);
+
 	test('GET top 3 current-arbitrages for all available markets - with status 200', async () => {
 		const top = 3;
 		const response = await api
@@ -98,7 +122,7 @@ describe('test GET /coin-arbitrage/crypto/current-arbitrages', () => {
 		expect(response.body).toBeTruthy();
 	});
 
-	test.only('GET current-arbitrages without ticker return status 400', async () => {
+	test('GET current-arbitrages without ticker return status 400', async () => {
 		const response = await api.get(`/coin-arbitrage/crypto/current-arbitrages`).expect(400);
 		expect(response).not.toBe(null);
 		expect(response.body).not.toBe(null);

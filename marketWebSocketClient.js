@@ -57,7 +57,7 @@ const onConnect = market =>
 					);
 
 					try {
-						price = marketApiResponseHandler.getPriceByMarketAndTicker(
+						price = marketApiResponseHandler.(
 							market.com.api.websocket.pathToPrice,
 							null,
 							tickerResult
