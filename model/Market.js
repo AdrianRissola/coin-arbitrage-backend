@@ -33,6 +33,12 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'EOS-BTC': String,
 	'MIOTA-USDT': String,
 	'MIOTA-BTC': String,
+	'BTC-ARS': String,
+	'ETH-ARS': String,
+});
+
+const tickerPatternSchema = new mongoose.Schema({
+	separator: String,
 });
 
 const websocketSchema = new mongoose.Schema({
@@ -48,6 +54,7 @@ const websocketSchema = new mongoose.Schema({
 
 const restSchema = new mongoose.Schema({
 	base: String,
+	tickerPattern: tickerPatternSchema,
 	tickerPath: String,
 	pathToPrice: [],
 });
