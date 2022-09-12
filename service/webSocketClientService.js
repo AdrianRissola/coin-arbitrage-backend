@@ -1,5 +1,5 @@
 const marketsDBmanager = require('../marketsDBmanager');
-const marketWebSocketClient = require('../marketWebSocketClient2');
+const marketWebSocketClient = require('../marketWebSocketClient');
 
 exports.openAndSend = async websocketsActions => {
 	const marketsWithWebsockets = marketsDBmanager.getMarketsWithWebsocket(

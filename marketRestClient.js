@@ -58,7 +58,7 @@ const getMarketPrice = async (market, marketTickerName) => {
 			marketPrice = {
 				platform: market.name,
 				ticker: marketTickerName,
-				price: marketRestClientResultHandler.extractNumberFromTickerTarget(
+				price: marketRestClientResultHandler.extractNumberFromTarget(
 					market.com.api.rest.pathToPrice,
 					result,
 					{

@@ -6,10 +6,10 @@ const isString = value => {
 	return isStringValue;
 };
 
-exports.extractNumberFromTickerTarget = (pathToNumber, tickerTarget, config) => {
+exports.extractNumberFromTarget = (pathToNumber, target, config) => {
 	let numberField = null;
-	if (tickerTarget) {
-		numberField = tickerTarget;
+	if (target) {
+		numberField = target;
 		pathToNumber.some(fieldPath => {
 			let field = fieldPath;
 			if (isString(fieldPath) && fieldPath.includes('${ticker}.'))

@@ -1,4 +1,4 @@
-const marketWebSocketClient = require('../marketWebSocketClient2');
+const marketWebSocketClient = require('../marketWebSocketClient');
 const dtoConverter = require('../dtoConverter');
 const arbitrageService = require('./arbitrageService');
 
