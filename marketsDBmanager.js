@@ -130,11 +130,8 @@ exports.setAvailableTickers = tickers => {
 exports.getAllAvailableTickers = () => availableTickers;
 
 exports.getAllAvailableTickersByApi = api => {
-	const tickers = [];
-	availableTickers.forEach(at => {
-		if (at[api]) tickers.push(at);
-	});
-	return tickers;
+	if (availableTickers) availableTickers.filter(at => !!at[api]);
+	return availableTickers;
 };
 
 const hasAtLeastOneTicker = (market, api, tickers) =>
