@@ -1,13 +1,15 @@
-const toMarketPriceStreamDto = marketTickerStream => ({
+const toMarketPriceStreamDto = (marketTickerStream, ticker) => ({
 	market: marketTickerStream.data.market.name,
-	price: marketTickerStream.data.price,
+	// price: marketTickerStream.data.price,
+	price: marketTickerStream.data.tickerPrices[ticker.toUpperCase()],
 });
 
-exports.toMarketPricesStreamDto = marketTickersStream => {
+exports.toMarketPricesStreamDto = (marketTickersStream, ticker) => {
 	const marketTickersStreamDto = [];
 	Object.keys(marketTickersStream).forEach(key => {
-		if (marketTickersStream[key].data.price)
-			marketTickersStreamDto.push(toMarketPriceStreamDto(marketTickersStream[key]));
+		const { tickerPrices } = marketTickersStream[key].data;
+		if (tickerPrices && tickerPrices[ticker.toUpperCase()])
+			marketTickersStreamDto.push(toMarketPriceStreamDto(marketTickersStream[key], ticker));
 	});
 	return marketTickersStreamDto;
 };

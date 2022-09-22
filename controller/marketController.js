@@ -69,7 +69,7 @@ exports.getTickerByMarket = (request, response, next) => {
 };
 
 const isValidMarketRequest = market => {
-	const availableRestTickers = marketsDBmanager.getAllAvailableTickersByApi('rest');
+	const availableRestTickers = marketsDBmanager.getAllAvailableTickerNamesByApi('rest');
 	const availableTickersToMarketTickers = Object.keys(market.availableTickersToMarketTickers);
 	const tickerNotFound = availableTickersToMarketTickers.some(
 		incomingTicker => !availableRestTickers.includes(incomingTicker)

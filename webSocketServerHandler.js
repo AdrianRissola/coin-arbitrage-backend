@@ -2,9 +2,6 @@ const webSocketServerService = require('./service/webSocketServerService');
 const webSocketClientService = require('./service/webSocketClientService');
 const marketsDBmanager = require('./marketsDBmanager');
 
-let refreshPriceMarketChannelIntervalId = null;
-let refreshArbitrageChannelIntervalId = null;
-
 const { env } = process;
 const allowedOrigins =
 	env.NODE_ENV !== 'production'
@@ -40,7 +37,11 @@ const validateRequest = request => {
 	return result;
 };
 
-exports.onRequest = request => {
+const openAndConnected = connection => connection.state === 'open' && connection.connected;
+
+let id = 0;
+const connectionIdToSubscription = {};
+exports.onRequest = (wsServer, request) => {
 	if (!originIsAllowed(request.origin)) {
 		request.reject();
 		console.log(`${new Date()} Connection from origin ${request.origin} rejected.`);
@@ -48,6 +49,9 @@ exports.onRequest = request => {
 	}
 
 	const connection = request.accept(null, request.origin);
+	connection.id = id;
+	connectionIdToSubscription[connection.id] = null;
+	id += 1;
 
 	connection.sendUTF(
 		JSON.stringify({
@@ -59,59 +63,82 @@ exports.onRequest = request => {
 	console.log(`${new Date()} ${request.origin} Connection accepted.`);
 
 	connection.on('message', async message => {
-		clearInterval(refreshPriceMarketChannelIntervalId);
-		clearInterval(refreshArbitrageChannelIntervalId);
 		if (message.type === 'utf8') {
-			console.log(`Received Message: ${message.utf8Data}`);
+			console.log(
+				`Received Message: ${message.utf8Data} from remote: ${connection.socket.remoteAddress} ${connection.socket.remoteFamily} ${connection.socket.remotePort}`
+			);
 
-			const result = validateRequest(message.utf8Data);
-			if (result.isValid) {
-				await webSocketClientService.openAndSend({ tickers: [result.jsonData.ticker] });
+			const validatedRequest = validateRequest(message.utf8Data);
+			if (validatedRequest.isValid) {
+				await webSocketClientService.openAndSend({
+					tickers: [validatedRequest.jsonData.ticker],
+				});
 
-				if (result.jsonData.channel === 'prices' || result.jsonData.channel === 'all') {
-					refreshPriceMarketChannelIntervalId = setInterval(async () => {
-						const marketPricesDto = await webSocketServerService.streamMarketPrices(
-							result.jsonData.markets,
-							result.jsonData.ticker
+				const subscription = `${validatedRequest.jsonData.channel}:${validatedRequest.jsonData.ticker}`;
+				console.log('subscription: ', subscription);
+				if (
+					connectionIdToSubscription[connection.id] &&
+					connectionIdToSubscription[connection.id] !== subscription
+				) {
+					clearInterval(connection.arbitrageIntervalId);
+					clearInterval(connection.priceIntervalId);
+				}
+
+				connectionIdToSubscription[connection.id] = subscription;
+
+				if (
+					validatedRequest.jsonData.channel === 'prices' ||
+					validatedRequest.jsonData.channel === 'all'
+				) {
+					connection.priceIntervalId = setInterval(async () => {
+						const marketPricesDto = await webSocketServerService.streamAllMarketPrices(
+							validatedRequest.jsonData.ticker
 						);
 						const response = {};
 						response.channel = 'prices';
-						if (!marketPricesDto || Object.keys(marketPricesDto).length === 0) {
+						if (
+							!openAndConnected(connection) ||
+							!marketPricesDto ||
+							Object.keys(marketPricesDto).length === 0
+						) {
 							response.message = 'Market price service is not available';
-							clearInterval(refreshPriceMarketChannelIntervalId);
+							clearInterval(connection.priceIntervalId);
 						}
 						response.marketPrices = marketPricesDto;
 						connection.sendUTF(JSON.stringify(response));
 					}, 1000);
 				}
 
-				if (result.jsonData.channel === 'arbitrages' || result.jsonData.channel === 'all') {
-					refreshArbitrageChannelIntervalId = setInterval(async () => {
-						const arbitResponse = await webSocketServerService.streamArbitrages(
-							result.jsonData.markets,
-							result.jsonData.ticker
+				if (
+					validatedRequest.jsonData.channel === 'arbitrages' ||
+					validatedRequest.jsonData.channel === 'all'
+				) {
+					connection.arbitrageIntervalId = setInterval(async () => {
+						const arbitragesRspns = await webSocketServerService.streamAllArbitrages(
+							validatedRequest.jsonData.ticker
 						);
-						if (!arbitResponse.arbitrages) {
-							arbitResponse.message = 'Arbitrage service is not available';
-						}
-						arbitResponse.channel = 'arbitrages';
-						connection.sendUTF(JSON.stringify(arbitResponse));
+						if (!openAndConnected(connection))
+							clearInterval(connection.arbitrageIntervalId);
+						if (!arbitragesRspns.arbitrages)
+							arbitragesRspns.message = 'Arbitrage service is not available';
+						arbitragesRspns.channel = 'arbitrages';
+						connection.sendUTF(JSON.stringify(arbitragesRspns));
 					}, 1000);
 				}
 			} else {
-				connection.sendUTF(JSON.stringify(result.errorMessages));
+				connection.sendUTF(JSON.stringify(validatedRequest.errorMessages));
 			}
-		} else if (message.type === 'binary') {
-			console.log(`Received Binary Message of ${message.binaryData.length} bytes`);
-			// connection.sendBytes(message.binaryData);
 		}
 	});
 
 	connection.on('close', (reasonCode, description) => {
-		clearInterval(refreshPriceMarketChannelIntervalId);
-		clearInterval(refreshArbitrageChannelIntervalId);
+		console.log(`connectionIdToSubscription: ${JSON.stringify(connectionIdToSubscription)}`);
 		console.log(
-			` Peer ${connection.remoteAddress} disconnected. reasonCode: ${reasonCode} ${description}`
+			`Peer ${connection.remoteAddress} connection.id: ${connection.id} disconnected. reasonCode: ${reasonCode} ${description}`
 		);
+		delete connectionIdToSubscription[connection.id];
+		console.log(`connectionIdToSubscription: ${JSON.stringify(connectionIdToSubscription)}`);
+		clearInterval(connection.priceIntervalId);
+		clearInterval(connection.arbitrageIntervalId);
 	});
 };

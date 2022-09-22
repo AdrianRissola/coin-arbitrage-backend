@@ -19,5 +19,5 @@ const wsServer = new WebSocketServer({
 });
 
 wsServer.on('request', request => {
-	webSocketServerHandler.onRequest(request);
+	webSocketServerHandler.onRequest(wsServer, request);
 });

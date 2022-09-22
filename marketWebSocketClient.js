@@ -3,11 +3,12 @@ const marketsDBmanager = require('./marketsDBmanager');
 const marketApiResponseHandler = require('./marketApiResponseHandler');
 const dtoConverter = require('./dtoConverter');
 const logHelper = require('./logHelper');
+const marketHelper = require('./marketHelper');
 
 const client = new WebSocketClient();
 const webSocketConnections = {};
-const servernameMessage = {};
-const hostToChannelId = {};
+const marketHostToMessage = {};
+const marketHostToSubscriptionId = {};
 let marketsToConnect = null;
 let currentTickerSubscription = null;
 
@@ -43,20 +44,7 @@ const updateMarketsToConnect = connection => {
 	return market;
 };
 
-const clearPrice = async market => {
-	const connection = webSocketConnections[market.com.api.websocket.host];
-	if (connection && servernameMessage[connection.socket.servername]) {
-		console.log(
-			`CLEARING PRICE FROM ${market.com.api.websocket.host}: ${
-				servernameMessage[connection.socket.servername].data.price
-			}`
-		);
-		servernameMessage[connection.socket.servername].data.price = null;
-	}
-};
-
 const subscribe = async market => {
-	await clearPrice(market);
 	const ticker = market.tickerRequest.toUpperCase();
 	const tickerToSubscribe = market.com.api.websocket.availableTickersToMarketTickers[ticker];
 
@@ -66,24 +54,42 @@ const subscribe = async market => {
 			tickerToSubscribe
 		);
 		const connection = webSocketConnections[market.com.api.websocket.host];
-		console.log(`SUBSCRIBING ${market.com.api.websocket.host}: ${tickerRequest}`);
-		connection.sendUTF(tickerRequest);
-		connection.currentTickerSubscription = ticker;
+		if (connection) {
+			console.log(`SUBSCRIBING ${market.com.api.websocket.host}: ${tickerRequest}`);
+			connection.sendUTF(tickerRequest);
+			connection.currentTickerSubscription = ticker;
+		}
 	} else {
-		console.log(`${market.com.api.websocket.host} not supports ${ticker}`);
+		console.log(`${market.com.api.websocket.host} is not supporting ${ticker}`);
 	}
 };
 
-const putChannelId = (connection, market, messageResponse) => {
+const getSubscriptionId = (market, messageResponse) => {
+	let subscriptionId = null;
+	const { pathToSubscriptionId } = market.com.api.websocket;
+	if (pathToSubscriptionId && pathToSubscriptionId.length > 0)
+		subscriptionId = marketApiResponseHandler.extractNumberFromTarget(
+			market.com.api.websocket.pathToSubscriptionId,
+			messageResponse,
+			{ valueType: 'number' }
+		);
+	return subscriptionId;
+};
+
+const putSubscriptionId = async (connection, market, messageResponse) => {
 	if (
-		market.com.api.websocket.pathToChannelId &&
-		market.com.api.websocket.pathToChannelId.length > 0
-	)
-		hostToChannelId[connection.socket.servername] =
-			marketApiResponseHandler.extractNumberFromTarget(
-				market.com.api.websocket.pathToChannelId,
-				messageResponse
-			);
+		market.com.api.websocket.pathToSubscriptionId &&
+		market.com.api.websocket.pathToSubscriptionId.length > 0
+	) {
+		const subscriptionId = getSubscriptionId(market, messageResponse);
+		if (subscriptionId) {
+			if (!marketHostToSubscriptionId[connection.socket.servername])
+				marketHostToSubscriptionId[connection.socket.servername] = {};
+			if (!marketHostToSubscriptionId[connection.socket.servername][subscriptionId])
+				marketHostToSubscriptionId[connection.socket.servername][subscriptionId] =
+					connection.currentTickerSubscription;
+		}
+	}
 };
 
 const getPrice = (market, messageResponse) =>
@@ -95,22 +101,55 @@ const getPrice = (market, messageResponse) =>
 				market.com.api.websocket.availableTickersToMarketTickers[
 					market.tickerRequest.toUpperCase()
 				],
+			valueType: 'number',
 		}
 	);
 
+const getAppTicker = (market, messageResponse) => {
+	let appTicker = null;
+	const { pathToTicker } = market.com.api.websocket;
+	if (pathToTicker && pathToTicker.length > 0) {
+		const marketTicker = marketApiResponseHandler.extractNumberFromTarget(
+			pathToTicker,
+			messageResponse,
+			{
+				valueType: 'string',
+				tickerKeyIndex: market.com.api.websocket.tickerKeyIndex,
+			}
+		);
+		appTicker = marketHelper.getAppTicker(market, 'websocket', marketTicker);
+	} else if (market.com.api.websocket.pathToSubscriptionId)
+		appTicker =
+			marketHostToSubscriptionId[market.com.api.websocket.host][
+				getSubscriptionId(market, messageResponse)
+			];
+	return appTicker;
+};
+
 const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	const price = getPrice(market, parsedMessage);
+	const appTicker = getAppTicker(market, parsedMessage);
+	const subscriptionId = getSubscriptionId(market, parsedMessage);
 	if (price) {
-		servernameMessage[connection.socket.servername] = {};
-		servernameMessage[connection.socket.servername].connected = connection.connected;
-		servernameMessage[connection.socket.servername].rawData = rawMessage.utf8Data;
-		servernameMessage[connection.socket.servername].data = {};
-		servernameMessage[connection.socket.servername].data.market = market;
-		servernameMessage[connection.socket.servername].data.ticker =
+		if (!marketHostToMessage[connection.socket.servername])
+			marketHostToMessage[connection.socket.servername] = {};
+		marketHostToMessage[connection.socket.servername].connected = connection.connected;
+		marketHostToMessage[connection.socket.servername].rawData = rawMessage.utf8Data;
+		if (!marketHostToMessage[connection.socket.servername].data)
+			marketHostToMessage[connection.socket.servername].data = {};
+		marketHostToMessage[connection.socket.servername].data.market = market;
+		if (!marketHostToMessage[connection.socket.servername].data.subscriptionId)
+			marketHostToMessage[connection.socket.servername].data.subscriptionId = {};
+		marketHostToMessage[connection.socket.servername].data.subscriptionId[subscriptionId] =
 			connection.currentTickerSubscription;
-		servernameMessage[connection.socket.servername].data.marketTicker = parsedMessage;
-		servernameMessage[connection.socket.servername].data.price = price;
-		servernameMessage[connection.socket.servername].data.timestamp = new Date();
+		const { tickerPrices } = marketHostToMessage[connection.socket.servername].data;
+		if (!tickerPrices) marketHostToMessage[connection.socket.servername].data.tickerPrices = {};
+		marketHostToMessage[connection.socket.servername].data.tickerPrices[appTicker] = price;
+		marketHostToMessage[connection.socket.servername].data.ticker =
+			connection.currentTickerSubscription;
+		marketHostToMessage[connection.socket.servername].data.marketTicker = parsedMessage;
+		marketHostToMessage[connection.socket.servername].data.price = price;
+		marketHostToMessage[connection.socket.servername].data.timestamp = new Date();
 	}
 };
 
@@ -131,14 +170,14 @@ client.on('connect', connection => {
 	}
 
 	connection.on('error', error => {
-		if (servernameMessage[connection.socket.servername])
-			servernameMessage[connection.socket.servername].connected = connection.connected;
+		if (marketHostToMessage[connection.socket.servername])
+			marketHostToMessage[connection.socket.servername].connected = connection.connected;
 		console.log(`Connection Error: ${connection.socket.servername} - ${JSON.stringify(error)}`);
 	});
 
 	connection.on('close', () => {
-		if (servernameMessage[connection.socket.servername])
-			servernameMessage[connection.socket.servername].connected = connection.connected;
+		if (marketHostToMessage[connection.socket.servername])
+			marketHostToMessage[connection.socket.servername].connected = connection.connected;
 		console.log(
 			'Connection Closed:',
 			connection.socket.servername,
@@ -149,7 +188,7 @@ client.on('connect', connection => {
 		);
 	});
 
-	connection.on('message', message => {
+	connection.on('message', async message => {
 		if (message.type === 'utf8') {
 			const parsedMessage = JSON.parse(message.utf8Data);
 			const foundMmarket = marketsDBmanager.getMarketByWebsocketHost(
@@ -157,11 +196,11 @@ client.on('connect', connection => {
 			);
 
 			try {
-				putChannelId(connection, foundMmarket, parsedMessage);
+				await putSubscriptionId(connection, foundMmarket, parsedMessage);
 
 				putMessage(connection, message, parsedMessage, market);
 
-				logHelper.logMarketTickerStream(servernameMessage);
+				logHelper.logMarketTickerStream(marketHostToMessage);
 			} catch (error) {
 				// console.log(error.description);
 			}
@@ -177,18 +216,20 @@ exports.getMarketTickerStream = (marketsNames, ticker) => {
 	let websocketHosts = null;
 	if (marketsNames) websocketHosts = marketsDBmanager.getWebsocketHosts(marketsNames, ticker);
 
-	Object.keys(servernameMessage).forEach(host => {
+	Object.keys(marketHostToMessage).forEach(host => {
 		if (
 			(!websocketHosts || websocketHosts.includes(host)) &&
-			servernameMessage[host].data.ticker.toUpperCase() === ticker.toUpperCase() &&
-			servernameMessage[host].data.price &&
-			servernameMessage[host].connected
+			marketHostToMessage[host].data.ticker.toUpperCase() === ticker.toUpperCase() &&
+			marketHostToMessage[host].data.price &&
+			marketHostToMessage[host].connected
 		)
-			result[host] = servernameMessage[host];
+			result[host] = marketHostToMessage[host];
 	});
 
 	return result;
 };
+
+exports.getAllMarketTickerStream = () => marketHostToMessage;
 
 exports.getWebSocketConnections = () => dtoConverter.toConnectionsDto(webSocketConnections);
 
@@ -204,7 +245,6 @@ const isConnecting = market => {
 
 const changeTickerSubscription = async (markets, tickers) => {
 	marketsToConnect.forEach(market => {
-		console.log(market.name);
 		const tickerToUnsubscribe =
 			market.com.api.websocket.availableTickersToMarketTickers[
 				currentTickerSubscription.toUpperCase()
@@ -212,11 +252,18 @@ const changeTickerSubscription = async (markets, tickers) => {
 		if (tickerToUnsubscribe) {
 			const unsubscribeRequest = market.com.api.websocket.unsubscribeTickerRequest
 				.replace('${ticker}', tickerToUnsubscribe)
-				.replace('${channelId}', hostToChannelId[market.com.api.websocket.host]);
+				.replace('${channelId}', marketHostToSubscriptionId[market.com.api.websocket.host]);
 			console.log(`UNSUBSCRIBING ${market.com.api.websocket.host}: ${unsubscribeRequest}`);
 			const connection = webSocketConnections[market.com.api.websocket.host];
-			connection.sendUTF(unsubscribeRequest);
+			if (connection) connection.sendUTF(unsubscribeRequest);
 		}
+		market.tickerRequest = tickers[0];
+		subscribe(market);
+	});
+};
+
+const addTickerSubscription = async tickers => {
+	marketsToConnect.forEach(market => {
 		market.tickerRequest = tickers[0];
 		subscribe(market);
 	});
@@ -227,7 +274,7 @@ exports.connectAndSend = async (markets, tickers) => {
 		currentTickerSubscription &&
 		currentTickerSubscription.toUpperCase() !== tickers[0].toUpperCase()
 	) {
-		await changeTickerSubscription(markets, tickers);
+		await addTickerSubscription(tickers);
 	}
 	currentTickerSubscription = tickers[0];
 	marketsToConnect = markets;

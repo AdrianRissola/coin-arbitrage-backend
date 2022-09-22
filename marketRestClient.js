@@ -64,6 +64,7 @@ const getMarketPrice = async (market, marketTickerName) => {
 					{
 						marketTickerName,
 						tickerSeparator: getTickerSeparator(market),
+						valueType: 'number',
 					}
 				),
 				date: new Date(),

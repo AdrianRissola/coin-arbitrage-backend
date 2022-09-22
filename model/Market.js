@@ -48,7 +48,10 @@ const websocketSchema = new mongoose.Schema({
 	unsubscribeTickerRequest: String,
 	availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
 	pathToPrice: [],
-	pathToChannelId: [],
+	pathToSubscriptionId: [],
+	pathToTicker: [],
+	tickerTextPattern: String,
+	tickerKeyIndex: Number,
 	pingFrequencyInSeconds: Number,
 });
 

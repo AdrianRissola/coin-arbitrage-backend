@@ -4,7 +4,15 @@ const arbitrageService = require('./arbitrageService');
 
 exports.streamMarketPrices = async (markets, ticker) => {
 	const marketTickersStream = marketWebSocketClient.getMarketTickerStream(markets, ticker);
-	const marketPricesStreamDto = dtoConverter.toMarketPricesStreamDto(marketTickersStream);
+	const marketPricesStreamDto = dtoConverter.toMarketPricesStreamDto(marketTickersStream, ticker);
+	const tickerToMarketPrices = {};
+	tickerToMarketPrices[ticker.toUpperCase()] = marketPricesStreamDto;
+	return tickerToMarketPrices;
+};
+
+exports.streamAllMarketPrices = async ticker => {
+	const marketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
+	const marketPricesStreamDto = dtoConverter.toMarketPricesStreamDto(marketTickersStream, ticker);
 	const tickerToMarketPrices = {};
 	tickerToMarketPrices[ticker.toUpperCase()] = marketPricesStreamDto;
 	return tickerToMarketPrices;
@@ -38,6 +46,41 @@ exports.streamArbitrages = async (markets, ticker) => {
 					price: marketTickersStream[host].data.price,
 					ticker: marketTickersStream[host].data.market.tickerRequest,
 				});
+		});
+		arbitrages = arbitrageService.calculateArbitrages(
+			marketPrices,
+			null,
+			null,
+			formatResponse,
+			priceComparator
+		);
+	}
+
+	const websocketConnections = marketWebSocketClient.getWebSocketConnections();
+	const connectedMarkets = [];
+	const disconnectedMarkets = [];
+	Object.keys(websocketConnections).forEach(host => {
+		if (websocketConnections[host].connected) connectedMarkets.push(host);
+		else disconnectedMarkets.push(`${host} - ${websocketConnections[host].closeDescription}`);
+	});
+
+	return { arbitrages, connectedMarkets, disconnectedMarkets };
+};
+
+exports.streamAllArbitrages = async ticker => {
+	const allMarketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
+	const marketPrices = [];
+	let arbitrages = null;
+	if (allMarketTickersStream) {
+		Object.keys(allMarketTickersStream).forEach(host => {
+			if (allMarketTickersStream[host].connected) {
+				const price = allMarketTickersStream[host].data.tickerPrices[ticker.toUpperCase()];
+				marketPrices.push({
+					platform: allMarketTickersStream[host].data.market.name,
+					price,
+					ticker: ticker.toUpperCase(),
+				});
+			}
 		});
 		arbitrages = arbitrageService.calculateArbitrages(
 			marketPrices,

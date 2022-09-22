@@ -1,16 +1,11 @@
 const errorHelper = require('./errorHelper');
+const { isString } = require('./helper');
 
-const isString = value => {
-	let isStringValue = false;
-	if (typeof value === 'string') isStringValue = true;
-	return isStringValue;
-};
-
-exports.extractNumberFromTarget = (pathToNumber, target, config) => {
-	let numberField = null;
+exports.extractNumberFromTarget = (pathToValue, target, config) => {
+	let targetField = null;
 	if (target) {
-		numberField = target;
-		pathToNumber.some(fieldPath => {
+		targetField = target;
+		pathToValue.some(fieldPath => {
 			let field = fieldPath;
 			if (isString(fieldPath) && fieldPath.includes('${ticker}.'))
 				field = fieldPath.replace(
@@ -19,17 +14,24 @@ exports.extractNumberFromTarget = (pathToNumber, target, config) => {
 				);
 			else if (fieldPath === '${ticker}')
 				field = fieldPath.replace('${ticker}', config.marketTickerName);
-			numberField = numberField[field];
-			return !numberField;
+			targetField = targetField[field];
+			return !targetField;
 		});
 	}
 
-	const number = Number(numberField);
+	let validType = true;
+	if (typeof config.tickerKeyIndex !== 'number') {
+		if (config.valueType === 'number') targetField = Number(targetField);
+		if (config.valueType === 'string') validType = isString(targetField);
+	} else {
+		targetField = Object.keys(targetField)[config.tickerKeyIndex];
+	}
 
-	if (!numberField || !number)
+	if (!targetField || !validType)
+		// TODO: refactor
 		throw errorHelper.errors.BAD_REQUEST(
-			`Error when try to extract field from target using pathToField: ${pathToNumber}`
+			`Error when try to extract value from target using pathToValue: ${pathToValue}`
 		);
 
-	return number;
+	return targetField;
 };

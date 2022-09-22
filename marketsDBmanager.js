@@ -134,6 +134,16 @@ exports.getAllAvailableTickersByApi = api => {
 	return availableTickers;
 };
 
+exports.getAllAvailableTickerNamesByApi = api => {
+	const tickerNames = [];
+	if (availableTickers) {
+		availableTickers.forEach(at => {
+			if (at[api]) tickerNames.push(at.name);
+		});
+	}
+	return tickerNames;
+};
+
 const hasAtLeastOneTicker = (market, api, tickers) =>
 	tickers.some(
 		ticker => market.com.api[api].availableTickersToMarketTickers[ticker.toUpperCase()]
