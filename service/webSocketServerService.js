@@ -2,14 +2,6 @@ const marketWebSocketClient = require('../marketWebSocketClient');
 const dtoConverter = require('../dtoConverter');
 const arbitrageService = require('./arbitrageService');
 
-exports.streamMarketPrices = async (markets, ticker) => {
-	const marketTickersStream = marketWebSocketClient.getMarketTickerStream(markets, ticker);
-	const marketPricesStreamDto = dtoConverter.toMarketPricesStreamDto(marketTickersStream, ticker);
-	const tickerToMarketPrices = {};
-	tickerToMarketPrices[ticker.toUpperCase()] = marketPricesStreamDto;
-	return tickerToMarketPrices;
-};
-
 exports.streamAllMarketPrices = async ticker => {
 	const marketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
 	const marketPricesStreamDto = dtoConverter.toMarketPricesStreamDto(marketTickersStream, ticker);
@@ -34,28 +26,7 @@ const formatResponse = (arbitrages, ticker) => {
 
 const priceComparator = (priceA, priceB) => priceA <= priceB;
 
-exports.streamArbitrages = async (markets, ticker) => {
-	const marketTickersStream = marketWebSocketClient.getMarketTickerStream(markets, ticker);
-	const marketPrices = [];
-	let arbitrages = null;
-	if (marketTickersStream) {
-		Object.keys(marketTickersStream).forEach(host => {
-			if (marketTickersStream[host].connected)
-				marketPrices.push({
-					platform: marketTickersStream[host].data.market.name,
-					price: marketTickersStream[host].data.price,
-					ticker: marketTickersStream[host].data.market.tickerRequest,
-				});
-		});
-		arbitrages = arbitrageService.calculateArbitrages(
-			marketPrices,
-			null,
-			null,
-			formatResponse,
-			priceComparator
-		);
-	}
-
+exports.getMarketStatus = async () => {
 	const websocketConnections = marketWebSocketClient.getWebSocketConnections();
 	const connectedMarkets = [];
 	const disconnectedMarkets = [];
@@ -63,11 +34,10 @@ exports.streamArbitrages = async (markets, ticker) => {
 		if (websocketConnections[host].connected) connectedMarkets.push(host);
 		else disconnectedMarkets.push(`${host} - ${websocketConnections[host].closeDescription}`);
 	});
-
-	return { arbitrages, connectedMarkets, disconnectedMarkets };
+	return { connectedMarkets, disconnectedMarkets };
 };
 
-exports.streamAllArbitrages = async ticker => {
+const getAllArbitrages = async ticker => {
 	const allMarketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
 	const marketPrices = [];
 	let arbitrages = null;
@@ -90,14 +60,18 @@ exports.streamAllArbitrages = async ticker => {
 			priceComparator
 		);
 	}
+	return arbitrages;
+};
 
-	const websocketConnections = marketWebSocketClient.getWebSocketConnections();
-	const connectedMarkets = [];
-	const disconnectedMarkets = [];
-	Object.keys(websocketConnections).forEach(host => {
-		if (websocketConnections[host].connected) connectedMarkets.push(host);
-		else disconnectedMarkets.push(`${host} - ${websocketConnections[host].closeDescription}`);
-	});
-
-	return { arbitrages, connectedMarkets, disconnectedMarkets };
+exports.getArbitrageChannelInfo = async ticker => {
+	const arbitrages = getAllArbitrages(ticker);
+	const marketStatus = this.getMarketStatus();
+	const result = await Promise.all([arbitrages, marketStatus]);
+	const arbitrageChannelInfo = {
+		arbitrages: result[0],
+		marketStatus: result[1],
+	};
+	arbitrageChannelInfo.channel = 'arbitrages';
+	if (!arbitrages) arbitrageChannelInfo.message = 'Arbitrage service is not available';
+	return arbitrageChannelInfo;
 };

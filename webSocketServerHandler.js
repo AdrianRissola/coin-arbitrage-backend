@@ -114,15 +114,13 @@ exports.onRequest = (wsServer, request) => {
 					validatedRequest.jsonData.channel === 'all'
 				) {
 					connection.arbitrageIntervalId = setInterval(async () => {
-						const arbitragesRspns = await webSocketServerService.streamAllArbitrages(
-							validatedRequest.jsonData.ticker
-						);
+						const arbitrageChannelInfo =
+							await webSocketServerService.getArbitrageChannelInfo(
+								validatedRequest.jsonData.ticker
+							);
 						if (!openAndConnected(connection))
 							clearInterval(connection.arbitrageIntervalId);
-						if (!arbitragesRspns.arbitrages)
-							arbitragesRspns.message = 'Arbitrage service is not available';
-						arbitragesRspns.channel = 'arbitrages';
-						connection.sendUTF(JSON.stringify(arbitragesRspns));
+						connection.sendUTF(JSON.stringify(arbitrageChannelInfo));
 					}, 1000);
 				}
 			} else {
