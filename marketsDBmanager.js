@@ -129,10 +129,8 @@ exports.setAvailableTickers = tickers => {
 
 exports.getAllAvailableTickers = () => availableTickers;
 
-exports.getAllAvailableTickersByApi = api => {
-	if (availableTickers) availableTickers.filter(at => !!at[api]);
-	return availableTickers;
-};
+exports.getAllAvailableTickersByApi = api =>
+	availableTickers ? availableTickers.filter(at => at[api]) : null;
 
 exports.getAllAvailableTickerNamesByApi = api => {
 	const tickerNames = [];

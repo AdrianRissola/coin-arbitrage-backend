@@ -1,6 +1,7 @@
 const marketWebSocketClient = require('../marketWebSocketClient');
 const dtoConverter = require('../dtoConverter');
 const arbitrageService = require('./arbitrageService');
+const marketsDBmanager = require('../marketsDBmanager');
 
 exports.streamAllMarketPrices = async ticker => {
 	const marketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
@@ -37,26 +38,28 @@ exports.getMarketStatus = async () => {
 	return { connectedMarkets, disconnectedMarkets };
 };
 
-const getAllArbitrages = async ticker => {
+const getAllArbitrages = async filters => {
 	const allMarketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
 	const marketPrices = [];
 	let arbitrages = null;
 	if (allMarketTickersStream) {
 		Object.keys(allMarketTickersStream).forEach(host => {
 			if (allMarketTickersStream[host].connected) {
-				const price = allMarketTickersStream[host].data.tickerPrices[ticker.toUpperCase()];
-				marketPrices.push({
-					platform: allMarketTickersStream[host].data.market.name,
-					price,
-					ticker: ticker.toUpperCase(),
-				});
+				const price =
+					allMarketTickersStream[host].data.tickerPrices[filters.ticker.toUpperCase()];
+				if (price)
+					marketPrices.push({
+						platform: allMarketTickersStream[host].data.market.name,
+						price,
+						ticker: filters.ticker.toUpperCase(),
+					});
 			}
 		});
 		arbitrages = arbitrageService.calculateArbitrages(
 			marketPrices,
 			null,
-			null,
-			formatResponse,
+			filters.top,
+			filters.formatResponse,
 			priceComparator
 		);
 	}
@@ -64,13 +67,30 @@ const getAllArbitrages = async ticker => {
 };
 
 exports.getArbitrageChannelInfo = async ticker => {
-	const arbitrages = getAllArbitrages(ticker);
+	const arbitrageChannelInfo = {};
+	let arbitrages = null;
+	let arbitragesList = [];
+	if (ticker.toUpperCase() !== 'ALL') {
+		arbitrages = getAllArbitrages({ ticker, formatResponse });
+		arbitrageChannelInfo.ticker = ticker;
+	} else {
+		arbitrageChannelInfo.ticker = 'ALL';
+		const availableTickers = marketsDBmanager.getAllAvailableTickersByApi('websocket');
+		availableTickers.forEach(availableTicker => {
+			arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
+		});
+		arbitragesList = await Promise.all(arbitragesList);
+		if (arbitragesList && arbitragesList.length > 0)
+			arbitrages = arbitragesList
+				.filter(rbtrgs => rbtrgs)
+				.reduce((max, arbits) =>
+					max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
+				);
+	}
 	const marketStatus = this.getMarketStatus();
 	const result = await Promise.all([arbitrages, marketStatus]);
-	const arbitrageChannelInfo = {
-		arbitrages: result[0],
-		marketStatus: result[1],
-	};
+	arbitrageChannelInfo.arbitrages = result[0];
+	arbitrageChannelInfo.marketStatus = result[1];
 	arbitrageChannelInfo.channel = 'arbitrages';
 	if (!arbitrages) arbitrageChannelInfo.message = 'Arbitrage service is not available';
 	return arbitrageChannelInfo;

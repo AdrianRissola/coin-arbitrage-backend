@@ -11,6 +11,7 @@ const marketHostToMessage = {};
 const marketHostToSubscriptionId = {};
 let marketsToConnect = null;
 let currentTickerSubscription = null;
+const marketToSyncSubscription = {};
 
 client.on('connectFailed', error => {
 	console.log(`Connect Error for: ${client.socket.servername} ${error.toString()}`);
@@ -153,6 +154,11 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	}
 };
 
+const existSyncSubscriptions = connection =>
+	marketToSyncSubscription[connection.socket.servername] &&
+	marketToSyncSubscription[connection.socket.servername].tikcers &&
+	marketToSyncSubscription[connection.socket.servername].lenfth > 0;
+
 client.on('connect', connection => {
 	webSocketConnections[connection.socket.servername] = connection;
 
@@ -197,6 +203,15 @@ client.on('connect', connection => {
 
 			try {
 				await putSubscriptionId(connection, foundMmarket, parsedMessage);
+
+				if (existSyncSubscriptions(connection)) {
+					const marketToSubscribe = marketsDBmanager.getMarketByWebsocketHost(
+						connection.socket.servername
+					);
+					marketToSubscribe.tickerRequest =
+						marketToSyncSubscription[connection.socket.servername].tikcers.pop();
+					subscribe(marketToSubscribe);
+				}
 
 				putMessage(connection, message, parsedMessage, market);
 
@@ -264,20 +279,50 @@ const changeTickerSubscription = async (markets, tickers) => {
 
 const addTickerSubscription = async tickers => {
 	marketsToConnect.forEach(market => {
-		market.tickerRequest = tickers[0];
-		subscribe(market);
+		tickers.forEach(ticker => {
+			market.tickerRequest = ticker;
+			if (
+				market.com.api.websocket.pathToSubscriptionId &&
+				market.com.api.websocket.pathToSubscriptionId.length > 0
+			) {
+				if (!marketToSyncSubscription[market.com.api.websocket.host]) {
+					marketToSyncSubscription[market.com.api.websocket.host] = {};
+					marketToSyncSubscription[market.com.api.websocket.host].tickers = [];
+				}
+				marketToSyncSubscription[market.com.api.websocket.host].tickers.push(ticker);
+			} else {
+				market.tickerRequest = ticker;
+				subscribe(market);
+			}
+		});
+		if (
+			market.com.api.websocket.pathToSubscriptionId &&
+			market.com.api.websocket.pathToSubscriptionId.length > 0
+		) {
+			market.tickerRequest =
+				marketToSyncSubscription[market.com.api.websocket.host].tickers.pop();
+			subscribe(market);
+		}
 	});
+
+	// tickers.forEach(ticker => {
+	// 	marketsToConnect.forEach(market => {
+	// 		market.tickerRequest = ticker;
+	// 		subscribe(market);
+	// 	});
+	// });
 };
 
 exports.connectAndSend = async (markets, tickers) => {
-	if (
-		currentTickerSubscription &&
-		currentTickerSubscription.toUpperCase() !== tickers[0].toUpperCase()
-	) {
-		await addTickerSubscription(tickers);
-	}
-	currentTickerSubscription = tickers[0];
 	marketsToConnect = markets;
+	// if (
+	// 	currentTickerSubscription &&
+	// 	currentTickerSubscription.toUpperCase() !== tickers[0].toUpperCase()
+	// ) {
+	await addTickerSubscription(tickers);
+	// }
+	currentTickerSubscription = tickers[0];
+
 	marketsToConnect.forEach(marketToConnect => {
 		const market = marketToConnect;
 		market.connected = false;
