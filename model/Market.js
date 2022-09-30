@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const { model } = mongoose;
 
+// TODO: refactor to simplify adding new tickers
 const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'BTC-USD': String,
 	'BTC-USDT': String,
@@ -35,6 +36,8 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'MIOTA-BTC': String,
 	'BTC-ARS': String,
 	'ETH-ARS': String,
+	'ZEC-USDT': String,
+	'ZEC-BTC': String,
 });
 
 const tickerPatternSchema = new mongoose.Schema({
