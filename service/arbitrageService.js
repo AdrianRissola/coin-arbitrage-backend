@@ -1,4 +1,5 @@
 const logHelper = require('../logHelper');
+const Arbitrage = require('../model/Arbitrage');
 
 const percentage = (num1, num2) => {
 	const dif = num1 > num2 ? num1 - num2 : num2 - num1;
@@ -64,6 +65,20 @@ const calculateArbitrages = (
 	return arbitrages;
 };
 
+const save = arbitrage => {
+	const newArbitrage = new Arbitrage(arbitrage);
+	return newArbitrage
+		.save()
+		.then(result => {
+			console.log('saved: ', result);
+			return result;
+		})
+		.catch(err => {
+			console.error(err);
+		});
+};
+
 module.exports = {
 	calculateArbitrages,
+	save,
 };

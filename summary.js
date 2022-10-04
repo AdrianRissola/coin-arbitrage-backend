@@ -46,12 +46,6 @@ module.exports = Object.freeze(
 		"<td style='text-align:center'>-</td>" +
 		'<td>Show all historical stored arbitrages</td>' +
 		'</tr>' +
-		'<tr>' +
-		'<td>Host</td>' +
-		'<td>/coin-arbitrage/crypto/historical-arbitrages</td>' +
-		"<td style='text-align:center'>-</td>" +
-		'<td>Show all historical stored arbitrages</td>' +
-		'</tr>' +
 		'</table>' +
 		'<h2>Websocket API</h2>' +
 		'<table>' +
@@ -63,11 +57,11 @@ module.exports = Object.freeze(
 		'<tr>' +
 		'<td>wss://arcane-refuge-64485.herokuapp.com/</td>' +
 		'<td>{ "channel":"arbitrages", "ticker":"btc-usdt"}</td>' +
-		'<td>Show best ticker arbitrage for connected markets in real-time</td>' +
+		'<td>Show all arbitrage for selected ticker and connected markets in real-time</td>' +
 		'</tr>' +
 		'<td>wss://arcane-refuge-64485.herokuapp.com/</td>' +
 		'<td>{ "channel":"prices", "ticker":"btc-usdt"}</td>' +
-		'<td>Show ticker prices for connected markets in real-time</td>' +
+		'<td>Show prices for selected ticker and connected markets in real-time</td>' +
 		'</tr>' +
 		'</table>'
 );
