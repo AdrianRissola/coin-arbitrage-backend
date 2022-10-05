@@ -2,6 +2,7 @@ const marketWebSocketClient = require('../marketWebSocketClient');
 const dtoConverter = require('../dtoConverter');
 const arbitrageService = require('./arbitrageService');
 const marketsDBmanager = require('../marketsDBmanager');
+const Arbitrage = require('../model/Arbitrage');
 
 exports.streamAllMarketPrices = async ticker => {
 	const marketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
@@ -66,6 +67,35 @@ const getAllArbitrages = async filters => {
 	return arbitrages;
 };
 
+const save = async arbitrage => {
+	const maxProfitArbitrage = (await Arbitrage.find().sort({ profitPercentage: -1 }).limit(1))[0];
+	if (!maxProfitArbitrage || maxProfitArbitrage.profitPercentage < arbitrage.profitPercentage) {
+		const newArbitrage = new Arbitrage(arbitrage);
+		newArbitrage
+			.save()
+			.then(arbit => {
+				console.log('new arbitrage saved:', arbit);
+			})
+			.catch(err => {
+				console.error(err);
+			});
+	}
+
+	// await Arbitrage.find({}).then(result => {
+	// 	if (!result.length || result.profitPercentage > arbitrage.profitPercentage) {
+	// 		const newArbitrage = new Arbitrage(arbitrage);
+	// 		newArbitrage
+	// 			.save()
+	// 			.then(arbit => {
+	// 				console.log('new arbitrage saved:', arbit);
+	// 			})
+	// 			.catch(err => {
+	// 				console.error(err);
+	// 			});
+	// 	}
+	// });
+};
+
 exports.getArbitrageChannelInfo = async ticker => {
 	const arbitrageChannelInfo = {};
 	let arbitrages = null;
@@ -80,12 +110,14 @@ exports.getArbitrageChannelInfo = async ticker => {
 			arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
 		});
 		arbitragesList = await Promise.all(arbitragesList);
-		if (arbitragesList && arbitragesList.length > 0)
+		if (arbitragesList && arbitragesList.length > 0) {
 			arbitrages = arbitragesList
 				.filter(rbtrgs => rbtrgs)
 				.reduce((max, arbits) =>
 					max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
 				);
+			save(arbitrages[0]);
+		}
 	}
 	const marketStatus = this.getMarketStatus();
 	const result = await Promise.all([arbitrages, marketStatus]);

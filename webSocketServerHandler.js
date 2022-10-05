@@ -70,7 +70,6 @@ exports.onRequest = (wsServer, request) => {
 
 			const validatedRequest = validateRequest(message.utf8Data);
 			if (validatedRequest.isValid) {
-				// validatedRequest.jsonData.ticker = null;
 				const tickers =
 					validatedRequest.jsonData.ticker.toUpperCase() === 'ALL'
 						? marketsDBmanager.getAllAvailableTickerNamesByApi('websocket')

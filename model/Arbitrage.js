@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema({
 
 const arbitrageSchema = new mongoose.Schema({
 	transactions: [transactionSchema],
+	profitPercentage: Number,
+	profitPerUnit: Number,
 	user: userSchema,
 	date: Date,
 });
