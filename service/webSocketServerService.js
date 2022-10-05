@@ -70,30 +70,9 @@ const getAllArbitrages = async filters => {
 const save = async arbitrage => {
 	const maxProfitArbitrage = (await Arbitrage.find().sort({ profitPercentage: -1 }).limit(1))[0];
 	if (!maxProfitArbitrage || maxProfitArbitrage.profitPercentage < arbitrage.profitPercentage) {
-		const newArbitrage = new Arbitrage(arbitrage);
-		newArbitrage
-			.save()
-			.then(arbit => {
-				console.log('new arbitrage saved:', arbit);
-			})
-			.catch(err => {
-				console.error(err);
-			});
+		const newArbitrage = await arbitrageService.save(arbitrage);
+		console.log('new arbitrage saved:', newArbitrage);
 	}
-
-	// await Arbitrage.find({}).then(result => {
-	// 	if (!result.length || result.profitPercentage > arbitrage.profitPercentage) {
-	// 		const newArbitrage = new Arbitrage(arbitrage);
-	// 		newArbitrage
-	// 			.save()
-	// 			.then(arbit => {
-	// 				console.log('new arbitrage saved:', arbit);
-	// 			})
-	// 			.catch(err => {
-	// 				console.error(err);
-	// 			});
-	// 	}
-	// });
 };
 
 exports.getArbitrageChannelInfo = async ticker => {
@@ -116,7 +95,7 @@ exports.getArbitrageChannelInfo = async ticker => {
 				.reduce((max, arbits) =>
 					max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
 				);
-			save(arbitrages[0]);
+			await save(arbitrages[0]);
 		}
 	}
 	const marketStatus = this.getMarketStatus();

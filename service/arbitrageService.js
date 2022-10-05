@@ -69,10 +69,7 @@ const save = arbitrage => {
 	const newArbitrage = new Arbitrage(arbitrage);
 	return newArbitrage
 		.save()
-		.then(result => {
-			console.log('saved: ', result);
-			return result;
-		})
+		.then(arbit => arbit)
 		.catch(err => {
 			console.error(err);
 		});
