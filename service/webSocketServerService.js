@@ -89,6 +89,7 @@ exports.getArbitrageChannelInfo = async ticker => {
 			arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
 		});
 		arbitragesList = await Promise.all(arbitragesList);
+		arbitragesList = arbitragesList.filter(arbit => arbit);
 		if (arbitragesList && arbitragesList.length > 0) {
 			arbitrages = arbitragesList
 				.filter(rbtrgs => rbtrgs)
