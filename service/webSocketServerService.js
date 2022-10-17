@@ -103,7 +103,7 @@ exports.getArbitrageChannelInfo = async ticker => {
 	const result = await Promise.all([arbitrages, marketStatus]);
 	arbitrageChannelInfo.arbitrages = result[0];
 	arbitrageChannelInfo.marketStatus = result[1];
-	arbitrageChannelInfo.channel = 'arbitrages';
+	arbitrageChannelInfo.channel = 'arbitrage';
 	if (!arbitrages) arbitrageChannelInfo.message = 'Arbitrage service is not available';
 	return arbitrageChannelInfo;
 };

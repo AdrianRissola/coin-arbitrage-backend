@@ -54,7 +54,11 @@ exports.getMarketsByNames = async (names, api) => {
 exports.getMarketByWebsocketHost = websocketHost => {
 	let marketFound = null;
 	for (let i = 0; i < marketsFromDB.length; i += 1) {
-		if (marketsFromDB[i].com.api.websocket.host.toUpperCase() === websocketHost.toUpperCase()) {
+		if (
+			marketsFromDB[i].com.api.websocket &&
+			marketsFromDB[i].com.api.websocket.host &&
+			marketsFromDB[i].com.api.websocket.host.toUpperCase() === websocketHost.toUpperCase()
+		) {
 			marketFound = marketsFromDB[i];
 			break;
 		}

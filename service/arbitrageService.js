@@ -75,7 +75,13 @@ const save = arbitrage => {
 		});
 };
 
+const getAllOrderByProfitPercentageDesc = async () => {
+	const arbitrageList = Arbitrage.find().sort({ profitPercentage: -1 });
+	return arbitrageList;
+};
+
 module.exports = {
 	calculateArbitrages,
 	save,
+	getAllOrderByProfitPercentageDesc,
 };

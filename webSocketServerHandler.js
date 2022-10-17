@@ -1,5 +1,6 @@
 const webSocketServerService = require('./service/webSocketServerService');
 const webSocketClientService = require('./service/webSocketClientService');
+const arbitrageService = require('./service/arbitrageService');
 const marketsDBmanager = require('./marketsDBmanager');
 
 const { env } = process;
@@ -70,13 +71,15 @@ exports.onRequest = (wsServer, request) => {
 
 			const validatedRequest = validateRequest(message.utf8Data);
 			if (validatedRequest.isValid) {
-				const tickers =
-					validatedRequest.jsonData.ticker.toUpperCase() === 'ALL'
-						? marketsDBmanager.getAllAvailableTickerNamesByApi('websocket')
-						: [validatedRequest.jsonData.ticker];
-				await webSocketClientService.openAndSend({
-					tickers,
-				});
+				if (validatedRequest.jsonData.ticker) {
+					const tickers =
+						validatedRequest.jsonData.ticker.toUpperCase() === 'ALL'
+							? marketsDBmanager.getAllAvailableTickerNamesByApi('websocket')
+							: [validatedRequest.jsonData.ticker];
+					await webSocketClientService.openAndSend({
+						tickers,
+					});
+				}
 
 				const subscription = `${validatedRequest.jsonData.channel}:${validatedRequest.jsonData.ticker}`;
 				if (
@@ -85,6 +88,7 @@ exports.onRequest = (wsServer, request) => {
 				) {
 					clearInterval(connection.arbitrageIntervalId);
 					clearInterval(connection.priceIntervalId);
+					clearInterval(connection.historicalIntervalId);
 				}
 
 				connectionIdToSubscription[connection.id] = subscription;
@@ -113,7 +117,7 @@ exports.onRequest = (wsServer, request) => {
 				}
 
 				if (
-					validatedRequest.jsonData.channel === 'arbitrages' ||
+					validatedRequest.jsonData.channel === 'arbitrage' ||
 					validatedRequest.jsonData.channel === 'all'
 				) {
 					connection.arbitrageIntervalId = setInterval(async () => {
@@ -124,6 +128,17 @@ exports.onRequest = (wsServer, request) => {
 						if (!openAndConnected(connection))
 							clearInterval(connection.arbitrageIntervalId);
 						connection.sendUTF(JSON.stringify(arbitrageChannelInfo));
+					}, 1000);
+				}
+
+				if (validatedRequest.jsonData.channel === 'Historical') {
+					connection.historicalIntervalId = setInterval(async () => {
+						const response = {};
+						response.channel = 'Historical';
+						response.ticker = 'all';
+						response.arbitrages =
+							await arbitrageService.getAllOrderByProfitPercentageDesc();
+						connection.sendUTF(JSON.stringify(response));
 					}, 1000);
 				}
 			} else {
