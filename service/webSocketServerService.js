@@ -75,6 +75,8 @@ const save = async arbitrage => {
 	}
 };
 
+exports.getMarketsChannelInfo = async () => this.getMarketStatus();
+
 exports.getArbitrageChannelInfo = async ticker => {
 	const arbitrageChannelInfo = {};
 	let arbitrages = null;

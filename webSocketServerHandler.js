@@ -89,6 +89,7 @@ exports.onRequest = (wsServer, request) => {
 					clearInterval(connection.arbitrageIntervalId);
 					clearInterval(connection.priceIntervalId);
 					clearInterval(connection.historicalIntervalId);
+					clearInterval(connection.marketsIntervalId);
 				}
 
 				connectionIdToSubscription[connection.id] = subscription;
@@ -138,6 +139,15 @@ exports.onRequest = (wsServer, request) => {
 						response.ticker = 'all';
 						response.arbitrages =
 							await arbitrageService.getAllOrderByProfitPercentageDesc();
+						connection.sendUTF(JSON.stringify(response));
+					}, 1000);
+				}
+
+				if (validatedRequest.jsonData.channel === 'Markets') {
+					connection.marketsIntervalId = setInterval(async () => {
+						const response = {};
+						response.channel = 'Markets';
+						response.markets = await webSocketServerService.getMarketsChannelInfo();
 						connection.sendUTF(JSON.stringify(response));
 					}, 1000);
 				}
