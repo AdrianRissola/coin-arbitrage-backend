@@ -164,14 +164,16 @@ const hasWebsocket = (market, tickers) =>
 	);
 
 exports.getMarketsWithWebsocket = (tickers, marketNames) => {
-	const marketsWithWebsockets = marketsFromDB.filter(market => {
-		let marketNameFound = null;
-		if (marketNames)
-			marketNameFound = marketNames.find(
-				marketName => marketName.toUpperCase() === market.name.toUpperCase()
-			);
-		return hasWebsocket(market, tickers) && (marketNameFound || !marketNames);
-	});
+	let marketsWithWebsockets = null;
+	if (marketsFromDB)
+		marketsWithWebsockets = marketsFromDB.filter(market => {
+			let marketNameFound = null;
+			if (marketNames)
+				marketNameFound = marketNames.find(
+					marketName => marketName.toUpperCase() === market.name.toUpperCase()
+				);
+			return hasWebsocket(market, tickers) && (marketNameFound || !marketNames);
+		});
 	return marketsWithWebsockets;
 };
 

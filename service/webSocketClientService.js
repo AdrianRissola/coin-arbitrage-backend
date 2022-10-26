@@ -7,10 +7,12 @@ exports.openAndSend = async websocketsActions => {
 		websocketsActions.markets
 	);
 
-	const webSocketConnections = await marketWebSocketClient.connectAndSend(
-		marketsWithWebsockets,
-		websocketsActions.tickers
-	);
+	let webSocketConnections = null;
+	if (marketsWithWebsockets)
+		webSocketConnections = await marketWebSocketClient.connectAndSend(
+			marketsWithWebsockets,
+			websocketsActions.tickers
+		);
 
 	return webSocketConnections;
 };
