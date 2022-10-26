@@ -67,14 +67,6 @@ const getAllArbitrages = async filters => {
 	return arbitrages;
 };
 
-const save = async arbitrage => {
-	const maxProfitArbitrage = (await Arbitrage.find().sort({ profitPercentage: -1 }).limit(1))[0];
-	if (!maxProfitArbitrage || maxProfitArbitrage.profitPercentage < arbitrage.profitPercentage) {
-		const newArbitrage = await arbitrageService.save(arbitrage);
-		console.log('new arbitrage saved:', newArbitrage);
-	}
-};
-
 exports.getMarketsChannelInfo = async () => this.getMarketStatus();
 
 exports.getArbitrageChannelInfo = async ticker => {
@@ -82,8 +74,13 @@ exports.getArbitrageChannelInfo = async ticker => {
 	let arbitrages = null;
 	let arbitragesList = [];
 	if (ticker.toUpperCase() !== 'ALL') {
-		arbitrages = getAllArbitrages({ ticker, formatResponse });
+		arbitrages = await getAllArbitrages({ ticker, formatResponse });
 		arbitrageChannelInfo.ticker = ticker;
+		if (arbitrages && Object.keys(arbitrages[ticker.toUpperCase()])[0]) {
+			const tickerArbitrage = arbitrages[ticker.toUpperCase()];
+			const bestTickerArbitrage = tickerArbitrage[Object.keys(tickerArbitrage)[0]];
+			await arbitrageService.saveMaxProfitArbitrageByTicker(bestTickerArbitrage);
+		}
 	} else {
 		arbitrageChannelInfo.ticker = 'ALL';
 		const availableTickers = marketsDBmanager.getAllAvailableTickersByApi('websocket');
@@ -98,13 +95,14 @@ exports.getArbitrageChannelInfo = async ticker => {
 				.reduce((max, arbits) =>
 					max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
 				);
-			await save(arbitrages[0]);
+			await arbitrageService.saveMaxProfitArbitrageByTicker(arbitrages[0]);
 		}
 	}
-	const marketStatus = this.getMarketStatus();
-	const result = await Promise.all([arbitrages, marketStatus]);
-	arbitrageChannelInfo.arbitrages = result[0];
-	arbitrageChannelInfo.marketStatus = result[1];
+	const marketStatus = await this.getMarketStatus();
+	[arbitrageChannelInfo.arbitrages, arbitrageChannelInfo.marketStatus] = [
+		arbitrages,
+		marketStatus,
+	];
 	arbitrageChannelInfo.channel = 'arbitrage';
 	if (!arbitrages) arbitrageChannelInfo.message = 'Arbitrage service is not available';
 	return arbitrageChannelInfo;

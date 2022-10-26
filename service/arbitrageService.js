@@ -65,14 +65,31 @@ const calculateArbitrages = (
 	return arbitrages;
 };
 
-const save = arbitrage => {
+const save = async arbitrage => {
 	const newArbitrage = new Arbitrage(arbitrage);
-	return newArbitrage
+	const newArbitrageSaved = await newArbitrage
 		.save()
 		.then(arbit => arbit)
 		.catch(err => {
 			console.error(err);
 		});
+	return newArbitrageSaved;
+};
+
+const saveMaxProfitArbitrageByTicker = async arbitrage => {
+	const findArbitrageByPairQuery = {
+		'transactions.0.pair': arbitrage.transactions[0].pair,
+	};
+	const maxProfitArbitrageList = await Arbitrage.find(findArbitrageByPairQuery)
+		.sort({ profitPercentage: -1 })
+		.limit(1);
+	const maxProfitArbitrage = maxProfitArbitrageList[0];
+	let newArbitrageSaved = null;
+	if (!maxProfitArbitrage || maxProfitArbitrage.profitPercentage < arbitrage.profitPercentage) {
+		newArbitrageSaved = await save(arbitrage);
+		console.log('new arbitrage saved:', newArbitrageSaved);
+	}
+	return newArbitrageSaved;
 };
 
 const getAllOrderByProfitPercentageDesc = async () => {
@@ -82,6 +99,6 @@ const getAllOrderByProfitPercentageDesc = async () => {
 
 module.exports = {
 	calculateArbitrages,
-	save,
+	saveMaxProfitArbitrageByTicker,
 	getAllOrderByProfitPercentageDesc,
 };
