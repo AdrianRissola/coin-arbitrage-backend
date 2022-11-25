@@ -2,7 +2,6 @@ const marketWebSocketClient = require('../marketWebSocketClient');
 const dtoConverter = require('../dtoConverter');
 const arbitrageService = require('./arbitrageService');
 const marketsDBmanager = require('../marketsDBmanager');
-const Arbitrage = require('../model/Arbitrage');
 
 exports.streamAllMarketPrices = async ticker => {
 	const marketTickersStream = marketWebSocketClient.getAllMarketTickerStream();
@@ -69,35 +68,50 @@ const getAllArbitrages = async filters => {
 
 exports.getMarketsChannelInfo = async () => this.getMarketStatus();
 
+const getArbitrageByTicker = async ticker => {
+	const arbitrages = await getAllArbitrages({ ticker, formatResponse });
+	if (arbitrages && Object.keys(arbitrages[ticker.toUpperCase()])[0]) {
+		const tickerArbitrage = arbitrages[ticker.toUpperCase()];
+		const bestTickerArbitrage = tickerArbitrage[Object.keys(tickerArbitrage)[0]];
+		await arbitrageService.saveMaxProfitArbitrageByTicker(bestTickerArbitrage);
+	}
+	return arbitrages;
+};
+
+const getBestArbitrage = async () => {
+	let arbitrages = null;
+	const availableTickers = marketsDBmanager.getAllAvailableTickersByApi('websocket');
+	let arbitragesList = [];
+	availableTickers.forEach(availableTicker => {
+		arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
+	});
+	arbitragesList = await Promise.all(arbitragesList);
+	arbitragesList = arbitragesList.filter(arbit => arbit);
+	if (arbitragesList && arbitragesList.length > 0) {
+		arbitrages = arbitragesList
+			.filter(rbtrgs => rbtrgs)
+			.reduce((max, arbits) =>
+				max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
+			);
+		await arbitrageService.saveMaxProfitArbitrageByTicker(arbitrages[0]);
+	}
+	return arbitrages;
+};
+
 exports.getArbitrageChannelInfo = async ticker => {
 	const arbitrageChannelInfo = {};
 	let arbitrages = null;
-	let arbitragesList = [];
+	let currentTicker = null;
 	if (ticker.toUpperCase() !== 'ALL') {
-		arbitrages = await getAllArbitrages({ ticker, formatResponse });
+		arbitrages = await getArbitrageByTicker(ticker);
 		arbitrageChannelInfo.ticker = ticker;
-		if (arbitrages && Object.keys(arbitrages[ticker.toUpperCase()])[0]) {
-			const tickerArbitrage = arbitrages[ticker.toUpperCase()];
-			const bestTickerArbitrage = tickerArbitrage[Object.keys(tickerArbitrage)[0]];
-			await arbitrageService.saveMaxProfitArbitrageByTicker(bestTickerArbitrage);
-		}
+		currentTicker = ticker;
 	} else {
+		arbitrages = await getBestArbitrage();
 		arbitrageChannelInfo.ticker = 'ALL';
-		const availableTickers = marketsDBmanager.getAllAvailableTickersByApi('websocket');
-		availableTickers.forEach(availableTicker => {
-			arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
-		});
-		arbitragesList = await Promise.all(arbitragesList);
-		arbitragesList = arbitragesList.filter(arbit => arbit);
-		if (arbitragesList && arbitragesList.length > 0) {
-			arbitrages = arbitragesList
-				.filter(rbtrgs => rbtrgs)
-				.reduce((max, arbits) =>
-					max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
-				);
-			await arbitrageService.saveMaxProfitArbitrageByTicker(arbitrages[0]);
-		}
+		currentTicker = arbitrages[0].transactions[0].pair;
 	}
+	arbitrageChannelInfo.marketPrices = await this.streamAllMarketPrices(currentTicker);
 	const marketStatus = await this.getMarketStatus();
 	[arbitrageChannelInfo.arbitrages, arbitrageChannelInfo.marketStatus] = [
 		arbitrages,

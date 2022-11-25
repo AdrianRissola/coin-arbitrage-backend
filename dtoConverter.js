@@ -28,3 +28,44 @@ exports.toConnectionsDto = connections => {
 	});
 	return connectionDto;
 };
+
+const getWebsocketTickers = market =>
+	market &&
+	market.com &&
+	market.com.api &&
+	market.com.api.websocket &&
+	market.com.api.websocket.availableTickersToMarketTickers
+		? Object.keys(market.com.api.websocket.availableTickersToMarketTickers.toObject()).filter(
+				ticker => ticker !== '_id'
+		  )
+		: [];
+
+const getTickerRestEndpoint = market =>
+	market &&
+	market.com &&
+	market.com.api &&
+	market.com.api.rest &&
+	market.com.api.rest.base &&
+	market.com.api.rest.tickerPath
+		? market.com.api.rest.base.concat(market.com.api.rest.tickerPath)
+		: null;
+
+const toMarketDto = market => ({
+	name: market.name,
+	tickers: {
+		rest: Object.keys(market.availableTickersToMarketTickers.toObject()).filter(
+			ticker => ticker !== '_id'
+		),
+		websocket: getWebsocketTickers(market),
+	},
+	tickerRestEndpoint: getTickerRestEndpoint(market),
+	type: market.type,
+});
+
+exports.toMarketsDto = markets => {
+	const marketsDto = [];
+	markets.forEach(market => {
+		marketsDto.push(toMarketDto(market));
+	});
+	return marketsDto;
+};

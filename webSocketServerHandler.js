@@ -94,33 +94,7 @@ exports.onRequest = (wsServer, request) => {
 
 				connectionIdToSubscription[connection.id] = subscription;
 
-				if (
-					validatedRequest.jsonData.channel === 'prices' ||
-					validatedRequest.jsonData.channel === 'all'
-				) {
-					connection.priceIntervalId = setInterval(async () => {
-						const marketPricesDto = await webSocketServerService.streamAllMarketPrices(
-							validatedRequest.jsonData.ticker
-						);
-						const response = {};
-						response.channel = 'prices';
-						if (
-							!openAndConnected(connection) ||
-							!marketPricesDto ||
-							Object.keys(marketPricesDto).length === 0
-						) {
-							response.message = 'Market price service is not available';
-							clearInterval(connection.priceIntervalId);
-						}
-						response.marketPrices = marketPricesDto;
-						connection.sendUTF(JSON.stringify(response));
-					}, 1000);
-				}
-
-				if (
-					validatedRequest.jsonData.channel === 'arbitrage' ||
-					validatedRequest.jsonData.channel === 'all'
-				) {
+				if (validatedRequest.jsonData.channel === 'arbitrage') {
 					connection.arbitrageIntervalId = setInterval(async () => {
 						const arbitrageChannelInfo =
 							await webSocketServerService.getArbitrageChannelInfo(

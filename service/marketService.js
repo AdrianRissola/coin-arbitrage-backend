@@ -1,8 +1,9 @@
 const marketsDBmanager = require('../marketsDBmanager');
 const marketRestClient = require('../marketRestClient');
+const dtoConverter = require('../dtoConverter');
 const Market = require('../model/Market');
 
-const getAllMarkets = async () => marketsDBmanager.getAllMarkets();
+const getAllMarkets = async () => dtoConverter.toMarketsDto(marketsDBmanager.getAllMarkets());
 
 const getTickerByMarket = async (marketName, ticker) => {
 	const market = marketsDBmanager.getMarketByName(marketName);
