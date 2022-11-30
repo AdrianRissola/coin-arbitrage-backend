@@ -48,7 +48,7 @@ router.get('/', (request, response) => {
 });
 
 router.use((error, request, response, next) => {
-	const allowedOrigins = ['https://arcane-refuge-64485.herokuapp.com', 'http://localhost:3000'];
+	const allowedOrigins = ['https://stark-shore-63269.herokuapp.com', 'http://localhost:3000'];
 	// Website you wish to allow to connect
 	response.setHeader('Access-Control-Allow-Origin', allowedOrigins);
 
