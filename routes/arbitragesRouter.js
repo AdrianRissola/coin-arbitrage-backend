@@ -48,8 +48,9 @@ router.get('/', (request, response) => {
 });
 
 router.use((error, request, response, next) => {
+	const allowedOrigins = ['https://arcane-refuge-64485.herokuapp.com', 'http://localhost:3000'];
 	// Website you wish to allow to connect
-	response.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+	response.setHeader('Access-Control-Allow-Origin', allowedOrigins);
 
 	// Request methods you wish to allow
 	response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
