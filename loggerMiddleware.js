@@ -4,8 +4,11 @@ const allowedOrigins =
 		? JSON.parse(env.LOCAL_ALLOWED_ORIGINS)
 		: JSON.parse(env.PROD_ALLOWED_ORIGINS);
 const logger = (request, response, next) => {
-	// Website you wish to allow to connect
-	response.setHeader('Access-Control-Allow-Origin', allowedOrigins);
+	const { origin } = request.headers;
+	if (allowedOrigins.includes(origin)) {
+		// Website you wish to allow to connect
+		response.setHeader('Access-Control-Allow-Origin', origin);
+	}
 
 	// Request methods you wish to allow
 	response.setHeader('Access-Control-Allow-Methods', 'GET');
