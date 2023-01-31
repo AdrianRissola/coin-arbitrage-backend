@@ -14,7 +14,9 @@ const marketToSyncSubscription = {};
 
 client.on('connectFailed', error => {
 	console.log(
-		`Connect Error for: ${client.socket ? client.socket.servername : null} ${error.toString()}`
+		`Connect Error for: ${
+			client.socket ? client.socket.servername : client
+		} ${error.toString()}`
 	);
 });
 
@@ -175,9 +177,12 @@ client.on('connect', connection => {
 	const unconnectedMarket = marketsToConnect.find(
 		marketToConnect => !isConnected(marketToConnect)
 	);
+
 	if (unconnectedMarket) {
 		const { host } = unconnectedMarket.com.api.websocket;
-		client.connect(unconnectedMarket.com.api.websocket.url.replace('${host}', host));
+		const url = unconnectedMarket.com.api.websocket.url.replace('${host}', host);
+		console.log(`connecting to: ${market.name} with url: ${url}}`);
+		client.connect(url);
 	}
 
 	connection.on('error', error => {
@@ -257,8 +262,9 @@ const isConnecting = market => {
 	const { host } = market.com.api.websocket;
 	let connecting = false;
 	if (!webSocketConnections[host] || !webSocketConnections[host].connected) {
-		console.log(`coneecting to: ${market.name}`);
-		client.connect(market.com.api.websocket.url.replace('${host}', host));
+		const url = market.com.api.websocket.url.replace('${host}', host);
+		console.log(`connecting to: ${market.name} with url: ${url}}`);
+		client.connect(url);
 		connecting = true;
 	}
 	return connecting;
