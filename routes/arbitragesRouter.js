@@ -47,8 +47,14 @@ router.get('/', (request, response) => {
 	response.send(summary);
 });
 
+const { env } = process;
+const allowedOriginsEnv =
+	env.NODE_ENV !== 'production'
+		? JSON.parse(env.LOCAL_ALLOWED_ORIGINS)
+		: JSON.parse(env.PROD_ALLOWED_ORIGINS);
+
 router.use((error, request, response, next) => {
-	const allowedOrigins = ['https://stark-shore-63269.herokuapp.com', 'http://localhost:3000'];
+	const allowedOrigins = allowedOriginsEnv;
 	// Website you wish to allow to connect
 	response.setHeader('Access-Control-Allow-Origin', allowedOrigins);
 

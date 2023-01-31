@@ -55,11 +55,11 @@ module.exports = Object.freeze(
 		'<td><strong>Description</strong></td>' +
 		'</tr>' +
 		'<tr>' +
-		'<td>wss://arcane-refuge-64485.herokuapp.com/</td>' +
+		'<td>wss://web-production-b204.up.railway.app/</td>' +
 		'<td>{ "channel":"arbitrages", "ticker":"btc-usdt"}</td>' +
 		'<td>Show all arbitrage for selected ticker and connected markets in real-time</td>' +
 		'</tr>' +
-		'<td>wss://arcane-refuge-64485.herokuapp.com/</td>' +
+		'<td>wss://web-production-b204.up.railway.app/</td>' +
 		'<td>{ "channel":"prices", "ticker":"btc-usdt"}</td>' +
 		'<td>Show prices for selected ticker and connected markets in real-time</td>' +
 		'</tr>' +
