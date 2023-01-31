@@ -48,13 +48,12 @@ router.get('/', (request, response) => {
 });
 
 const { env } = process;
-const allowedOriginsEnv =
+const allowedOrigins =
 	env.NODE_ENV !== 'production'
 		? JSON.parse(env.LOCAL_ALLOWED_ORIGINS)
 		: JSON.parse(env.PROD_ALLOWED_ORIGINS);
 
 router.use((error, request, response, next) => {
-	const allowedOrigins = allowedOriginsEnv;
 	// Website you wish to allow to connect
 	response.setHeader('Access-Control-Allow-Origin', allowedOrigins);
 

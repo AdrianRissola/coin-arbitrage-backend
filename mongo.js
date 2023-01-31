@@ -5,6 +5,9 @@ const marketsDBmanager = require('./marketsDBmanager');
 const AvailableTicker = require('./model/AvailableTicker');
 
 const { env } = process;
+console.log('------------------BEGIN ENV DATA------------------');
+console.log(env);
+console.log('------------------END ENV DATA------------------');
 
 const dbUri = env.NODE_ENV === 'test' ? env.MONGO_DB_URI_TEST : env.MONGO_DB_URI;
 if (!dbUri) {
