@@ -1,6 +1,11 @@
+const { env } = process;
+const allowedOrigins =
+	env.NODE_ENV !== 'production'
+		? JSON.parse(env.LOCAL_ALLOWED_ORIGINS)
+		: JSON.parse(env.PROD_ALLOWED_ORIGINS);
 const logger = (request, response, next) => {
 	// Website you wish to allow to connect
-	response.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+	response.setHeader('Access-Control-Allow-Origin', allowedOrigins);
 
 	// Request methods you wish to allow
 	response.setHeader('Access-Control-Allow-Methods', 'GET');
