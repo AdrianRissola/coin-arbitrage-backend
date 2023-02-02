@@ -15,7 +15,7 @@ const marketToSyncSubscription = {};
 client.on('connectFailed', error => {
 	console.log(
 		`Connect Error for: ${
-			client.socket ? client.socket.servername : client.response.client.servername
+			client ? client.socket.servername : `WebSocketClient is:${client}`
 		} ${error.toString()}`
 	);
 });
