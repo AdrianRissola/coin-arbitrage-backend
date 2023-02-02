@@ -5,7 +5,7 @@ const dtoConverter = require('./dtoConverter');
 const logHelper = require('./logHelper');
 const marketHelper = require('./marketHelper');
 
-const client = new WebSocketClient();
+let client = new WebSocketClient();
 const webSocketConnections = {};
 const marketHostToMessage = {};
 const marketHostToSubscriptionId = {};
@@ -15,9 +15,15 @@ const marketToSyncSubscription = {};
 client.on('connectFailed', error => {
 	console.log(
 		`Connect Error for: ${
-			client?.socket?.servername || client?.response?.client?.servername
+			client?.socket?.servername ||
+			client?.response?.client?.servername ||
+			`WebSocketClient: ${client}`
 		} ${error.toString()}`
 	);
+	if (!client) {
+		console.log('restoring WebSocketClient...');
+		client = new WebSocketClient();
+	}
 });
 
 const sendPing = connection => {
