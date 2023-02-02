@@ -174,6 +174,7 @@ exports.getMarketsWithWebsocket = (tickers, marketNames) => {
 				);
 			return hasWebsocket(market, tickers) && (marketNameFound || !marketNames);
 		});
+	marketsWithWebsockets.shift();
 	return marketsWithWebsockets;
 };
 
