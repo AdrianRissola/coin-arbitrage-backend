@@ -20,8 +20,8 @@ client.on('connectFailed', error => {
 			`WebSocketClient: ${client}`
 		} ${error.toString()}`
 	);
-	if (!client) {
-		console.log('restoring WebSocketClient...');
+	if (error.message.includes('451')) {
+		console.log('restoring WebSocketClient after error 451...');
 		client = new WebSocketClient();
 	}
 });
