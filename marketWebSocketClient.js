@@ -4,8 +4,9 @@ const marketApiResponseHandler = require('./marketApiResponseHandler');
 const dtoConverter = require('./dtoConverter');
 const logHelper = require('./logHelper');
 const marketHelper = require('./marketHelper');
+const logger = require('./logger');
 
-let client = new WebSocketClient();
+const client = new WebSocketClient();
 const webSocketConnections = {};
 const marketHostToMessage = {};
 const marketHostToSubscriptionId = {};
@@ -20,10 +21,6 @@ client.on('connectFailed', error => {
 			`WebSocketClient: ${client}`
 		} ${error.toString()}`
 	);
-	if (error.message.includes('451')) {
-		console.log('restoring WebSocketClient after error 451...');
-		client = new WebSocketClient();
-	}
 });
 
 const sendPing = connection => {
@@ -55,6 +52,9 @@ const updateMarketsToConnect = connection => {
 };
 
 const subscribe = async market => {
+	if (market.name === 'Bitmex') {
+		console.log(market.tickerRequest);
+	}
 	const ticker = market.tickerRequest.toUpperCase();
 	const tickerToSubscribe = market.com.api.websocket.availableTickersToMarketTickers[ticker];
 
@@ -192,14 +192,18 @@ client.on('connect', connection => {
 	}
 
 	connection.on('error', error => {
+		marketHostToMessage[connection.socket.servername].data.price = null;
 		if (marketHostToMessage[connection.socket.servername])
 			marketHostToMessage[connection.socket.servername].connected = connection.connected;
 		console.log(`Connection Error: ${connection.socket.servername} - ${JSON.stringify(error)}`);
 	});
 
 	connection.on('close', () => {
-		if (marketHostToMessage[connection.socket.servername])
+		if (marketHostToMessage[connection.socket.servername]) {
 			marketHostToMessage[connection.socket.servername].connected = connection.connected;
+			marketHostToMessage[connection.socket.servername].data.price = null;
+			marketHostToMessage[connection.socket.servername].data.tickerPrices = null;
+		}
 		console.log(
 			'Connection Closed:',
 			connection.socket.servername,
@@ -216,6 +220,8 @@ client.on('connect', connection => {
 			const foundMmarket = marketsDBmanager.getMarketByWebsocketHost(
 				connection.socket.servername
 			);
+
+			logger.logDataByHost(connection.socket.servername, parsedMessage);
 
 			try {
 				await putSubscriptionId(connection, foundMmarket, parsedMessage);

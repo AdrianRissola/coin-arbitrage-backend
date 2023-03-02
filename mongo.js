@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Market = require('./model/Market');
 const marketsDBmanager = require('./marketsDBmanager');
 const AvailableTicker = require('./model/AvailableTicker');
+const helper = require('./test/testHelper');
 
 const { env } = process;
 console.log('------------------BEGIN ENV DATA------------------');
@@ -13,6 +14,34 @@ const dbUri = env.NODE_ENV === 'test' ? env.MONGO_DB_URI_TEST : env.MONGO_DB_URI
 if (!dbUri) {
 	console.error('.env file is mandatory');
 }
+
+const restoreDB = async () => {
+	await Market.deleteMany({});
+
+	await mongoose
+		.connect(dbUri)
+		.then(async () => {
+			console.log('connected db for restore');
+			const savedMarkets = [];
+			helper.MARKETS.forEach(market => {
+				const marketToSave = new Market(market);
+				const saved = marketToSave
+					.save()
+					.then(result => {
+						console.log('restoreDB - saved market: ', result);
+					})
+					.catch(err => {
+						console.error(err);
+					});
+				savedMarkets.push(saved);
+			});
+			await Promise.all(savedMarkets);
+		})
+		.catch(err => {
+			console.error(err);
+		});
+};
+// restoreDB();
 
 const connect = async () => {
 	console.log('connecting db...');

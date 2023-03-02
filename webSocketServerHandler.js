@@ -80,12 +80,19 @@ exports.onRequest = (wsServer, request) => {
 						tickers,
 					});
 				}
-
+				let subscriptionChanged = false;
 				const subscription = `${validatedRequest.jsonData.channel}:${validatedRequest.jsonData.ticker}`;
 				if (
 					connectionIdToSubscription[connection.id] &&
 					connectionIdToSubscription[connection.id] !== subscription
 				) {
+					subscriptionChanged = true;
+					console.log(
+						`clearing intervals for current: ${
+							connectionIdToSubscription[connection.id]
+						}`,
+						`received: ${subscription}`
+					);
 					clearInterval(connection.arbitrageIntervalId);
 					clearInterval(connection.priceIntervalId);
 					clearInterval(connection.historicalIntervalId);
@@ -96,13 +103,28 @@ exports.onRequest = (wsServer, request) => {
 
 				if (validatedRequest.jsonData.channel === 'arbitrage') {
 					connection.arbitrageIntervalId = setInterval(async () => {
-						const arbitrageChannelInfo =
-							await webSocketServerService.getArbitrageChannelInfo(
-								validatedRequest.jsonData.ticker
+						console.log('arbitrageIntervalId: ', connection.arbitrageIntervalId);
+						try {
+							const arbitrageChannelInfo =
+								await webSocketServerService.getArbitrageChannelInfo(
+									validatedRequest.jsonData.ticker
+								);
+							if (subscriptionChanged) {
+								console.log('subscriptionChanged: ', arbitrageChannelInfo.ticker);
+								clearInterval(connection.arbitrageIntervalId);
+								subscriptionChanged = false;
+							}
+							if (!openAndConnected(connection))
+								clearInterval(connection.arbitrageIntervalId);
+							console.log('send arbitrage: ', arbitrageChannelInfo.ticker);
+							connection.sendUTF(JSON.stringify(arbitrageChannelInfo));
+						} catch (error) {
+							console.log(
+								`error in setInterval ${validatedRequest.jsonData.channel}: ${error}`
 							);
-						if (!openAndConnected(connection))
 							clearInterval(connection.arbitrageIntervalId);
-						connection.sendUTF(JSON.stringify(arbitrageChannelInfo));
+							console.log('interval clean');
+						}
 					}, 1000);
 				}
 
