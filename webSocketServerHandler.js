@@ -1,6 +1,5 @@
 const webSocketServerService = require('./service/webSocketServerService');
 const webSocketClientService = require('./service/webSocketClientService');
-const arbitrageService = require('./service/arbitrageService');
 const marketsDBmanager = require('./marketsDBmanager');
 
 const { env } = process;
@@ -80,13 +79,11 @@ exports.onRequest = (wsServer, request) => {
 						tickers,
 					});
 				}
-				let subscriptionChanged = false;
 				const subscription = `${validatedRequest.jsonData.channel}:${validatedRequest.jsonData.ticker}`;
 				if (
 					connectionIdToSubscription[connection.id] &&
 					connectionIdToSubscription[connection.id] !== subscription
 				) {
-					subscriptionChanged = true;
 					console.log(
 						`clearing intervals for current: ${
 							connectionIdToSubscription[connection.id]
@@ -101,46 +98,32 @@ exports.onRequest = (wsServer, request) => {
 
 				connectionIdToSubscription[connection.id] = subscription;
 
-				if (validatedRequest.jsonData.channel === 'arbitrage') {
+				if (
+					validatedRequest.jsonData.channel === 'arbitrage' ||
+					validatedRequest.jsonData.channel === 'bestArbitrage'
+				) {
 					connection.arbitrageIntervalId = setInterval(async () => {
-						console.log('arbitrageIntervalId: ', connection.arbitrageIntervalId);
 						try {
 							const arbitrageChannelInfo =
 								await webSocketServerService.getArbitrageChannelInfo(
 									validatedRequest.jsonData.ticker
 								);
-							if (subscriptionChanged) {
-								console.log('subscriptionChanged: ', arbitrageChannelInfo.ticker);
-								clearInterval(connection.arbitrageIntervalId);
-								subscriptionChanged = false;
-							}
 							if (!openAndConnected(connection))
 								clearInterval(connection.arbitrageIntervalId);
-							console.log('send arbitrage: ', arbitrageChannelInfo.ticker);
 							connection.sendUTF(JSON.stringify(arbitrageChannelInfo));
 						} catch (error) {
 							console.log(
 								`error in setInterval ${validatedRequest.jsonData.channel}: ${error}`
 							);
 							clearInterval(connection.arbitrageIntervalId);
-							console.log('interval clean');
 						}
-					}, 1000);
-				}
-
-				if (validatedRequest.jsonData.channel === 'Historical') {
-					connection.historicalIntervalId = setInterval(async () => {
-						const response = {};
-						response.channel = 'Historical';
-						response.ticker = 'all';
-						response.arbitrages =
-							await arbitrageService.getAllOrderByProfitPercentageDesc();
-						connection.sendUTF(JSON.stringify(response));
 					}, 1000);
 				}
 
 				if (validatedRequest.jsonData.channel === 'Markets') {
 					connection.marketsIntervalId = setInterval(async () => {
+						if (validatedRequest.jsonData.channel !== 'Markets')
+							clearInterval(connection.marketsIntervalId);
 						const response = {};
 						response.channel = 'Markets';
 						response.markets = await webSocketServerService.getMarketsChannelInfo();

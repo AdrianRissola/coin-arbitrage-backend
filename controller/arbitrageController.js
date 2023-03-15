@@ -39,10 +39,9 @@ exports.getArbitrages = async (request, response, next) => {
 };
 
 exports.getAllHistoricalArbitrages = (request, response) => {
-	console.log('finding all stored arbitrage: ');
 	Arbitrage.find()
 		.then(result => {
-			console.log('findAll: ', result);
+			console.log('getAllHistoricalArbitrages... ');
 			response.json(result);
 		})
 		.catch(err => {

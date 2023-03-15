@@ -106,10 +106,12 @@ exports.getArbitrageChannelInfo = async ticker => {
 		arbitrages = await getArbitrageByTicker(ticker);
 		arbitrageChannelInfo.ticker = ticker;
 		currentTicker = ticker;
+		arbitrageChannelInfo.channel = 'arbitrage';
 	} else {
 		arbitrages = await getBestArbitrage();
 		arbitrageChannelInfo.ticker = 'ALL';
 		currentTicker = arbitrages[0].transactions[0].pair;
+		arbitrageChannelInfo.channel = 'bestArbitrage';
 	}
 	arbitrageChannelInfo.marketPrices = await this.streamAllMarketPrices(currentTicker);
 	const marketStatus = await this.getMarketStatus();
@@ -117,7 +119,6 @@ exports.getArbitrageChannelInfo = async ticker => {
 		arbitrages,
 		marketStatus,
 	];
-	arbitrageChannelInfo.channel = 'arbitrage';
 	if (!arbitrages) arbitrageChannelInfo.message = 'Arbitrage service is not available';
 	return arbitrageChannelInfo;
 };
