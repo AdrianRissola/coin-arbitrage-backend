@@ -125,7 +125,7 @@ exports.onRequest = (wsServer, request) => {
 						if (validatedRequest.jsonData.channel !== 'Markets')
 							clearInterval(connection.marketsIntervalId);
 						const response = {};
-						response.channel = 'Markets';
+						response.channel = 'markets';
 						response.markets = await webSocketServerService.getMarketsChannelInfo();
 						connection.sendUTF(JSON.stringify(response));
 					}, 1000);

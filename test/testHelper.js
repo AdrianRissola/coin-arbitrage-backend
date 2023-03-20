@@ -42,11 +42,11 @@ module.exports = Object.freeze({
 						tickerPath: '/ticker/price?symbol=${ticker}',
 						pathToPrice: ['data', 'price'],
 					},
-					'websocket-disabled': {
+					websocket: {
 						host: 'stream.binance.com',
-						url: 'wss://${host}:9443/ws',
+						url: 'wss://${host}:443/stream',
 						tickerRequest:
-							'{"method":"SUBSCRIBE","params":["${ticker}@ticker"],"id":1}',
+							'{"method": "SUBSCRIBE","params":["${ticker}@trade"],"id": 1}',
 						availableTickersToMarketTickers: {
 							'BTC-USDT': 'btcusdt',
 							'ETH-USDT': 'ethusdt',
@@ -79,8 +79,8 @@ module.exports = Object.freeze({
 							'ZEC-USDT': 'zecusdt',
 							'ZEC-BTC': 'zecbtc',
 						},
-						pathToPrice: ['c'],
-						pathToTicker: ['s'],
+						pathToPrice: ['data', 'p'],
+						pathToTicker: ['data', 's'],
 					},
 				},
 			},

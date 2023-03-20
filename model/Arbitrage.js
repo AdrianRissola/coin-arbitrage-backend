@@ -9,15 +9,10 @@ const transactionSchema = new mongoose.Schema({
 	price: Number,
 });
 
-const userSchema = new mongoose.Schema({
-	name: String,
-});
-
 const arbitrageSchema = new mongoose.Schema({
 	transactions: [transactionSchema],
 	profitPercentage: Number,
 	profitPerUnit: Number,
-	user: userSchema,
 	date: Date,
 });
 

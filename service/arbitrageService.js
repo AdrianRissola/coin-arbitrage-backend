@@ -77,10 +77,12 @@ const save = async arbitrage => {
 };
 
 const saveMaxProfitArbitrageByTicker = async arbitrage => {
-	const findArbitrageByPairQuery = {
+	const findArbitrageByPairAndMarketsQuery = {
 		'transactions.0.pair': arbitrage.transactions[0].pair,
+		'transactions.0.market': arbitrage.transactions[0].market,
+		'transactions.1.market': arbitrage.transactions[1].market,
 	};
-	const maxProfitArbitrageList = await Arbitrage.find(findArbitrageByPairQuery)
+	const maxProfitArbitrageList = await Arbitrage.find(findArbitrageByPairAndMarketsQuery)
 		.sort({ profitPercentage: -1 })
 		.limit(1);
 	const maxProfitArbitrage = maxProfitArbitrageList[0];
