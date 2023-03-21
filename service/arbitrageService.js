@@ -94,13 +94,20 @@ const saveMaxProfitArbitrageByTicker = async arbitrage => {
 	return newArbitrageSaved;
 };
 
-const getAllOrderByProfitPercentageDesc = async () => {
-	const arbitrageList = Arbitrage.find().sort({ profitPercentage: -1 });
+const getByTickerOrderByDateDesc = async ticker => {
+	const findArbitrageByPair = {
+		'transactions.0.pair': ticker,
+	};
+	const arbitrageList = await Arbitrage.find(findArbitrageByPair).sort({ date: -1 });
+	console.log(
+		`arbitrageService.getByTickerOrderByDateDesc(${ticker}) length:`,
+		arbitrageList.length
+	);
 	return arbitrageList;
 };
 
 module.exports = {
 	calculateArbitrages,
 	saveMaxProfitArbitrageByTicker,
-	getAllOrderByProfitPercentageDesc,
+	getByTickerOrderByDateDesc,
 };

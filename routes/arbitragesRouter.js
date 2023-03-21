@@ -20,7 +20,7 @@ router.get(
 	marketController.getTickerByMarket
 );
 
-router.get('/coin-arbitrage/crypto/available-tickers', marketController.getAllTickers);
+router.get('/coin-arbitrage/crypto/available-tickers', marketController.getAllAvailableTickers);
 
 router.post('/coin-arbitrage/crypto/markets', marketController.saveMarket);
 

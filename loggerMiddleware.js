@@ -24,6 +24,8 @@ const logger = (request, response, next) => {
 	console.log('request.path: ', request.path);
 	console.log('request.originalUrl: ', request.originalUrl);
 	console.log('request.body: ', request.body);
+	console.log('request.params: ', request.params);
+	console.log('request.query: ', request.query);
 	console.log('------');
 	next();
 };

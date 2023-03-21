@@ -2,7 +2,7 @@ const marketService = require('../service/marketService');
 const marketsDBmanager = require('../marketsDBmanager');
 const errorHelper = require('../errorHelper');
 
-exports.getAllTickers = (request, response) => {
+exports.getAllAvailableTickers = (request, response) => {
 	response.json(marketsDBmanager.getAllAvailableTickers());
 };
 

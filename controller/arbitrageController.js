@@ -38,15 +38,10 @@ exports.getArbitrages = async (request, response, next) => {
 	}
 };
 
-exports.getAllHistoricalArbitrages = (request, response) => {
-	Arbitrage.find()
-		.then(result => {
-			console.log('getAllHistoricalArbitrages... ');
-			response.json(result);
-		})
-		.catch(err => {
-			console.error(err);
-		});
+exports.getAllHistoricalArbitrages = async (request, response) => {
+	const { ticker } = request.query;
+	const result = await arbitrageService.getByTickerOrderByDateDesc(ticker);
+	response.json(result);
 };
 
 exports.saveArbitrage = (request, response) => {

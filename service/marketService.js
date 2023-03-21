@@ -94,6 +94,8 @@ const getMarketPrices = async (marketNames, ticker) => {
 	return marketPrices;
 };
 
+const getAllAvailableTickersByApi = api => marketsDBmanager.getAllAvailableTickersByApi(api);
+
 module.exports = {
 	getAllMarkets,
 	getTickerByMarket,
@@ -101,4 +103,5 @@ module.exports = {
 	saveNewMarket,
 	getAllMarketTickers,
 	getMarketPrices,
+	getAllAvailableTickersByApi,
 };
