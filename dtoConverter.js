@@ -52,6 +52,7 @@ const getTickerRestEndpoint = market =>
 
 const toMarketDto = market => ({
 	name: market.name,
+	website: market.website,
 	tickers: {
 		rest: Object.keys(market.availableTickersToMarketTickers.toObject()).filter(
 			ticker => ticker !== '_id'

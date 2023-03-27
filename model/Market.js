@@ -76,6 +76,7 @@ const comSchema = new mongoose.Schema({
 
 const marketSchema = new mongoose.Schema({
 	name: String,
+	website: String,
 	type: String,
 	availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
 	com: comSchema,
