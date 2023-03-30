@@ -39,8 +39,8 @@ exports.getArbitrages = async (request, response, next) => {
 };
 
 exports.getAllHistoricalArbitrages = async (request, response) => {
-	const { ticker } = request.query;
-	const result = await arbitrageService.getByTickerOrderByDateDesc(ticker);
+	const { tickers } = request.query;
+	const result = await arbitrageService.getByTickerOrderByDateDesc(tickers);
 	response.json(result);
 };
 

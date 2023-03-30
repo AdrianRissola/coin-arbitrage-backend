@@ -94,13 +94,13 @@ const saveMaxProfitArbitrageByTicker = async arbitrage => {
 	return newArbitrageSaved;
 };
 
-const getByTickerOrderByDateDesc = async ticker => {
+const getByTickerOrderByDateDesc = async tickers => {
 	const findArbitrageByPair = {
-		'transactions.0.pair': ticker,
+		'transactions.0.pair': { $in: tickers },
 	};
 	const arbitrageList = await Arbitrage.find(findArbitrageByPair).sort({ date: -1 });
 	console.log(
-		`arbitrageService.getByTickerOrderByDateDesc(${ticker}) length:`,
+		`arbitrageService.getByTickerOrderByDateDesc(${tickers}) length:`,
 		arbitrageList.length
 	);
 	return arbitrageList;
