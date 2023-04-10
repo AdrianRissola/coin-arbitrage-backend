@@ -56,7 +56,6 @@ exports.onRequest = (wsServer, request) => {
 	connection.sendUTF(
 		JSON.stringify({
 			response: `${request.origin} welcome to real-time monitor`,
-			availableTickers: marketsDBmanager.getAllAvailableTickersByApi('websocket'),
 		})
 	);
 
