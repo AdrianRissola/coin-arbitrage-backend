@@ -56,7 +56,6 @@ const subscribe = async market => {
 	const ticker = market.tickerRequest.toUpperCase();
 	const availableTicker = market.com.api.websocket.tickers.filter(t => t === ticker)[0];
 
-	console.log(`availableTicker: ${market.name} ${availableTicker}`);
 	if (availableTicker) {
 		tickerToSubscribe = marketHelper.getMarketPairCurrency(market, 'websocket', ticker);
 	}

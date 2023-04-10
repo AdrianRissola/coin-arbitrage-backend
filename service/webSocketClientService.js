@@ -6,6 +6,13 @@ exports.openAndSend = async websocketsActions => {
 		websocketsActions.tickers,
 		websocketsActions.markets
 	);
+	console.log(
+		marketsWithWebsockets.markets
+			? `Available markets with WebSockets for ${
+					websocketsActions.tickers
+			  }: ${marketsWithWebsockets?.map(m => m.name)}`
+			: `There are no available markets with WebSockets for: ${websocketsActions.tickers}`
+	);
 
 	let webSocketConnections = null;
 	if (marketsWithWebsockets)
