@@ -79,7 +79,6 @@ const getArbitrageByTicker = async ticker => {
 };
 
 const getBestArbitrage = async () => {
-	let arbitrages = null;
 	const availableTickers = marketsDBmanager.getAllAvailableTickersByApi('websocket');
 	let arbitragesList = [];
 	availableTickers.forEach(availableTicker => {
@@ -87,19 +86,30 @@ const getBestArbitrage = async () => {
 	});
 	arbitragesList = await Promise.all(arbitragesList);
 	arbitragesList = arbitragesList.filter(arbit => arbit);
+	let arbitUSDT = null;
+	let arbitBTC = null;
 	if (arbitragesList && arbitragesList.length > 0) {
-		arbitrages = arbitragesList
-			.filter(rbtrgs => rbtrgs)
-			.reduce((max, arbits) =>
-				max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
-			);
-		await arbitrageService.saveMaxProfitArbitrageByTicker(arbitrages[0]);
+		const arbitragesUSDT = arbitragesList.filter(
+			rbtrgs => rbtrgs[0].transactions[0].pair.split('-')[1] === 'USDT'
+		);
+		const arbitragesBTC = arbitragesList.filter(
+			rbtrgs => rbtrgs[0].transactions[0].pair.split('-')[1] === 'BTC'
+		);
+		arbitUSDT = arbitragesUSDT.reduce((max, arbits) =>
+			max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
+		);
+		arbitBTC = arbitragesBTC.reduce((max, arbits) =>
+			max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
+		);
+		arbitrageService.saveMaxProfitArbitrageByTicker(arbitUSDT[0]);
+		arbitrageService.saveMaxProfitArbitrageByTicker(arbitBTC[0]);
 	}
-	return arbitrages;
+	return [...arbitUSDT, ...arbitBTC];
 };
 
 exports.getArbitrageChannelInfo = async ticker => {
 	const arbitrageChannelInfo = {};
+	const bestArbitrages = {};
 	let arbitrages = null;
 	let currentTicker = null;
 	if (ticker.toUpperCase() !== 'ALL') {
@@ -107,18 +117,27 @@ exports.getArbitrageChannelInfo = async ticker => {
 		arbitrageChannelInfo.ticker = ticker;
 		currentTicker = ticker;
 		arbitrageChannelInfo.channel = 'arbitrage';
+		arbitrageChannelInfo.marketPrices = await this.streamAllMarketPrices(currentTicker);
+		arbitrageChannelInfo.arbitrages = arbitrages;
 	} else {
 		arbitrages = await getBestArbitrage();
 		arbitrageChannelInfo.ticker = 'ALL';
 		currentTicker = arbitrages[0].transactions[0].pair;
 		arbitrageChannelInfo.channel = 'bestArbitrage';
+		const marketPrices0 = await this.streamAllMarketPrices(arbitrages[0].transactions[0].pair);
+		const marketPrices1 = await this.streamAllMarketPrices(arbitrages[1].transactions[1].pair);
+		bestArbitrages.arbitragesData = [];
+		bestArbitrages.arbitragesData[0] = {
+			arbitrage: arbitrages[0],
+			marketPrices: marketPrices0,
+		};
+		bestArbitrages.arbitragesData[1] = {
+			arbitrage: arbitrages[1],
+			marketPrices: marketPrices1,
+		};
+		arbitrageChannelInfo.bestArbitrages = bestArbitrages;
 	}
-	arbitrageChannelInfo.marketPrices = await this.streamAllMarketPrices(currentTicker);
-	const marketStatus = await this.getMarketStatus();
-	[arbitrageChannelInfo.arbitrages, arbitrageChannelInfo.marketStatus] = [
-		arbitrages,
-		marketStatus,
-	];
-	if (!arbitrages) arbitrageChannelInfo.message = 'Arbitrage service is not available';
+
+	if (!arbitrages) arbitrageChannelInfo.message = `No arbitrage available for: ${ticker}`;
 	return arbitrageChannelInfo;
 };
