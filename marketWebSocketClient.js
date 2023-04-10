@@ -52,11 +52,14 @@ const updateMarketsToConnect = connection => {
 };
 
 const subscribe = async market => {
-	if (market.name === 'Bitmex') {
-		console.log(market.tickerRequest);
-	}
+	let tickerToSubscribe = null;
 	const ticker = market.tickerRequest.toUpperCase();
-	const tickerToSubscribe = market.com.api.websocket.availableTickersToMarketTickers[ticker];
+	const availableTicker = market.com.api.websocket.tickers.filter(t => t === ticker)[0];
+
+	console.log(`availableTicker: ${market.name} ${availableTicker}`);
+	if (availableTicker) {
+		tickerToSubscribe = marketHelper.getMarketPairCurrency(market, 'websocket', ticker);
+	}
 
 	if (tickerToSubscribe) {
 		const tickerRequest = market.com.api.websocket.tickerRequest.replace(
@@ -111,10 +114,11 @@ const getPrice = (market, messageResponse) =>
 		market.com.api.websocket.pathToPrice,
 		messageResponse,
 		{
-			marketTickerName:
-				market.com.api.websocket.availableTickersToMarketTickers[
-					market.tickerRequest.toUpperCase()
-				],
+			marketTickerName: marketHelper.getMarketPairCurrency(
+				market,
+				'websocket',
+				market.tickerRequest.toUpperCase()
+			),
 			valueType: 'number',
 		}
 	);
@@ -137,6 +141,7 @@ const getAppTicker = (market, messageResponse) => {
 			marketHostToSubscriptionId[market.com.api.websocket.host][
 				getSubscriptionId(market, messageResponse)
 			];
+	if (!appTicker) console.log('appTicker not found:', market.name, messageResponse);
 	return appTicker;
 };
 
