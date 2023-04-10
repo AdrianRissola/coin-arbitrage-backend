@@ -1,6 +1,5 @@
 const toMarketPriceStreamDto = (marketTickerStream, ticker) => ({
 	market: marketTickerStream.data.market.name,
-	// price: marketTickerStream.data.price,
 	price: marketTickerStream.data.tickerPrices[ticker.toUpperCase()],
 });
 
@@ -30,15 +29,7 @@ exports.toConnectionsDto = connections => {
 };
 
 const getWebsocketTickers = market =>
-	market &&
-	market.com &&
-	market.com.api &&
-	market.com.api.websocket &&
-	market.com.api.websocket.availableTickersToMarketTickers
-		? Object.keys(market.com.api.websocket.availableTickersToMarketTickers.toObject()).filter(
-				ticker => ticker !== '_id'
-		  )
-		: [];
+	market?.com?.api?.websocket?.tickers ? market.com.api.websocket.tickers : [];
 
 const getTickerRestEndpoint = market =>
 	market &&
