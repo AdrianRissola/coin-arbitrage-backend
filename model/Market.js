@@ -40,8 +40,22 @@ const availableTickersToMarketTickersSchema = new mongoose.Schema({
 	'ZEC-BTC': String,
 });
 
+const appSymbolToMarketSymbolSchema = new mongoose.Schema({
+	symbol: String,
+	marketSymbol: String,
+});
+
 const tickerPatternSchema = new mongoose.Schema({
+	baseCurrencyPrefix: String,
+	baseCurrencyCaseFunction: String,
+	quoteCurrencyCaseFunction: String,
 	separator: String,
+	currencies: [appSymbolToMarketSymbolSchema],
+});
+
+const pairCurrencySchema = new mongoose.Schema({
+	base: String,
+	quote: String,
 });
 
 const websocketSchema = new mongoose.Schema({
@@ -49,7 +63,10 @@ const websocketSchema = new mongoose.Schema({
 	url: String,
 	tickerRequest: String,
 	unsubscribeTickerRequest: String,
-	availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
+	// availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
+	pairCurrencies: [pairCurrencySchema],
+	tickers: [],
+	tickerPattern: tickerPatternSchema,
 	pathToPrice: [],
 	pathToSubscriptionId: [],
 	pathToTicker: [],
