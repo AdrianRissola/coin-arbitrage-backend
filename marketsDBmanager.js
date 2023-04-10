@@ -3,6 +3,7 @@ const Market = require('./model/Market');
 
 let marketsFromDB = null;
 let availableTickers = null;
+let availableCurrencies = null;
 
 exports.setMarketsFromDB = markets => {
 	marketsFromDB = markets;
@@ -31,14 +32,20 @@ const supports = (market, api) => {
 			market.com.api.rest.pathToPrice;
 	if (api === 'websocket')
 		result =
-			market.com &&
-			market.com.api &&
-			market.com.api.websocket &&
-			market.com.api.websocket.host &&
+			market?.com?.api?.websocket &&
+			market?.com?.api.websocket.host &&
 			market.com.api.websocket.url &&
 			market.com.api.websocket.tickerRequest &&
 			market.com.api.websocket.availableTickersToMarketTickers &&
 			market.com.api.websocket.pathToPrice;
+	// market.com &&
+	// market.com.api &&
+	// market.com.api.websocket &&
+	// market.com.api.websocket.host &&
+	// market.com.api.websocket.url &&
+	// market.com.api.websocket.tickerRequest &&
+	// market.com.api.websocket.availableTickersToMarketTickers &&
+	// market.com.api.websocket.pathToPrice;
 	return result;
 };
 
@@ -131,7 +138,34 @@ exports.setAvailableTickers = tickers => {
 	availableTickers = tickers;
 };
 
-exports.getAllAvailableTickers = () => availableTickers;
+exports.setAvailableCurrencies = currencies => {
+	availableCurrencies = currencies;
+};
+
+exports.getAvailableCurrencies = () => availableCurrencies;
+
+exports.getAllAvailableTickers = () => {
+	const pairCurrencies = [];
+	availableCurrencies?.forEach(ac => {
+		availableCurrencies.forEach(ac2 => {
+			const pairCurrencyName = ac.symbol.concat('-').concat(ac2.symbol);
+			if (
+				ac.symbol !== ac2.symbol &&
+				ac.base &&
+				ac2.quote &&
+				!pairCurrencies.some(pc => pc.name === pairCurrencyName)
+			) {
+				const pairCurrency = {
+					name: ac.symbol.concat('-').concat(ac2.symbol),
+					description: ac.description.concat(' - ').concat(ac2.description),
+				};
+				pairCurrencies.push(pairCurrency);
+			}
+		});
+	});
+	pairCurrencies.sort();
+	return pairCurrencies;
+};
 
 exports.getAllAvailableTickersByApi = api =>
 	availableTickers ? availableTickers.filter(at => at[api]) : null;
@@ -147,21 +181,27 @@ exports.getAllAvailableTickerNamesByApi = api => {
 };
 
 const hasAtLeastOneTicker = (market, api, tickers) =>
-	tickers.some(
-		ticker => market.com.api[api].availableTickersToMarketTickers[ticker.toUpperCase()]
-	);
+	tickers.some(ticker => market.com.api[api].tickers.includes(ticker.toUpperCase()));
 
 const hasWebsocket = (market, tickers) =>
 	!!(
-		market.com &&
-		market.com.api &&
-		market.com.api.websocket &&
-		market.com.api.websocket.availableTickersToMarketTickers &&
+		market?.com?.api?.websocket &&
+		market.com.api.websocket.tickers &&
 		hasAtLeastOneTicker(market, 'websocket', tickers) &&
 		market.com.api.websocket.host &&
 		market.com.api.websocket.url &&
 		market.com.api.websocket.tickerRequest
 	);
+// !!(
+// 	market.com &&
+// 	market.com.api &&
+// 	market.com.api.websocket &&
+// 	market.com.api.websocket.availableTickersToMarketTickers &&
+// 	hasAtLeastOneTicker(market, 'websocket', tickers) &&
+// 	market.com.api.websocket.host &&
+// 	market.com.api.websocket.url &&
+// 	market.com.api.websocket.tickerRequest
+// );
 
 exports.getMarketsWithWebsocket = (tickers, marketNames) => {
 	let marketsWithWebsockets = null;
