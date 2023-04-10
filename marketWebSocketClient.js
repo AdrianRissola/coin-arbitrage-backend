@@ -67,7 +67,12 @@ const subscribe = async market => {
 		);
 		const connection = webSocketConnections[market.com.api.websocket.host];
 		if (connection) {
-			console.log(`SUBSCRIBING ${market.com.api.websocket.host}: ${tickerRequest}`);
+			console.log(
+				`SUBSCRIBING ${market.com.api.websocket.url.replace(
+					'${host}',
+					market.com.api.websocket.host
+				)}: ${tickerRequest}`
+			);
 			connection.sendUTF(tickerRequest);
 			connection.currentTickerSubscription = ticker;
 		} else {
@@ -319,6 +324,12 @@ const addTickerSubscription = async tickers => {
 				}
 				marketToSyncSubscription[market.com.api.websocket.host].tickers.push(ticker);
 			} else {
+				if (market.name === 'Gate.io') {
+					console.log(ticker);
+					console.log(tickers);
+					console.log(market.name);
+					console.log(marketsToConnect.map(m => m.name));
+				}
 				market.tickerRequest = ticker;
 				subscribe(market);
 			}
