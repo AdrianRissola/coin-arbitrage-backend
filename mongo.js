@@ -1,8 +1,10 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Market = require('./model/Market');
-const marketsDBmanager = require('./marketsDBmanager');
 const AvailableTicker = require('./model/AvailableTicker');
+const Currency = require('./model/Currency');
+const marketsDBmanager = require('./marketsDBmanager');
+
 const helper = require('./test/testHelper');
 
 const { env } = process;
@@ -62,6 +64,19 @@ const connect = async () => {
 				marketsDBmanager.setAvailableTickers(result);
 				console.log(
 					`loaded available Tickers(${result.length}) from db: `,
+					marketsDBmanager.getAllAvailableTickers()
+				);
+				// mongoose.connection.close()  ???
+			});
+			await Currency.find({}).then(result => {
+				console.log(`loading available currencies(${result.length}) from db...`);
+				marketsDBmanager.setAvailableCurrencies(result);
+				console.log(
+					`loaded available currencies(${result.length}) from db: `,
+					marketsDBmanager.getAvailableCurrencies()
+				);
+				console.log(
+					`available pair currencies(${result.length}): `,
 					marketsDBmanager.getAllAvailableTickers()
 				);
 				// mongoose.connection.close()  ???
