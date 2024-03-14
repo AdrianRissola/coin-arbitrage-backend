@@ -44,7 +44,20 @@ const getAllArbitrages = async filters => {
 	let arbitrages = null;
 	if (allMarketTickersStream) {
 		Object.keys(allMarketTickersStream).forEach(host => {
+			// if (
+			// 	allMarketTickersStream[host].connected &&
+			// 	filters.top === 1 &&
+			// 	filters.ticker === 'BTC-TUSD'
+			// )
 			if (allMarketTickersStream[host].connected) {
+				// console.log(
+				// 	'filters.ticker.toUpperCase(): ',
+				// 	host,
+				// 	filters.ticker.toUpperCase(),
+				// 	JSON.stringify(
+				// 		allMarketTickersStream[host].data.tickerPrices[filters.ticker.toUpperCase()]
+				// 	)
+				// );
 				const price =
 					allMarketTickersStream[host].data.tickerPrices[filters.ticker.toUpperCase()];
 				if (price)
@@ -79,32 +92,40 @@ const getArbitrageByTicker = async ticker => {
 };
 
 const getBestArbitrage = async () => {
-	const availableTickers = marketsDBmanager.getAllAvailableTickersByApi('websocket');
+	const availableTickers = marketsDBmanager.getAllAvailableTickers();
+	//console.log('availableTickers: ', availableTickers);
 	let arbitragesList = [];
 	availableTickers.forEach(availableTicker => {
 		arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
 	});
+
 	arbitragesList = await Promise.all(arbitragesList);
-	arbitragesList = arbitragesList.filter(arbit => arbit);
-	let arbitUSDT = null;
-	let arbitBTC = null;
+
+	arbitragesList = arbitragesList.filter(arbit => arbit).map(arbits => arbits[0]);
+	let quoteCurrencyBestArbitrageList = null;
 	if (arbitragesList && arbitragesList.length > 0) {
-		const arbitragesUSDT = arbitragesList.filter(
-			rbtrgs => rbtrgs[0].transactions[0].pair.split('-')[1] === 'USDT'
+		const quoteCurrencies = marketsDBmanager.getAvailableCurrenciesByType('quote');
+		//console.log('quoteCurrencies: ', quoteCurrencies);
+		const tusd = arbitragesList.filter(a => a.transactions[0].pair.split('-')[1] === 'USDT');
+		//console.log('tusdddd: ', JSON.stringify(tusd));
+		quoteCurrencyBestArbitrageList = quoteCurrencies
+			.map(qc => {
+				return arbitragesList
+					.filter(arbit => arbit.transactions[0].pair.split('-')[1] === qc.symbol)
+					.reduce(
+						(max, arbit) =>
+							max.profitPercentage > arbit.profitPercentage ? max : arbit,
+						0
+					);
+			})
+			.filter(arbit => arbit != 0)
+			.sort((arbit, arbit2) => arbit.transactions[0].pair < arbit2.transactions[0].pair);
+
+		quoteCurrencyBestArbitrageList.forEach(arbit =>
+			arbitrageService.saveMaxProfitArbitrageByTicker(arbit)
 		);
-		const arbitragesBTC = arbitragesList.filter(
-			rbtrgs => rbtrgs[0].transactions[0].pair.split('-')[1] === 'BTC'
-		);
-		arbitUSDT = arbitragesUSDT.reduce((max, arbits) =>
-			max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
-		);
-		arbitBTC = arbitragesBTC.reduce((max, arbits) =>
-			max[0].profitPercentage > arbits[0].profitPercentage ? max : arbits
-		);
-		arbitrageService.saveMaxProfitArbitrageByTicker(arbitUSDT[0]);
-		arbitrageService.saveMaxProfitArbitrageByTicker(arbitBTC[0]);
 	}
-	return [...arbitUSDT, ...arbitBTC];
+	return quoteCurrencyBestArbitrageList;
 };
 
 exports.getArbitrageChannelInfo = async ticker => {
@@ -122,19 +143,23 @@ exports.getArbitrageChannelInfo = async ticker => {
 	} else {
 		arbitrages = await getBestArbitrage();
 		arbitrageChannelInfo.ticker = 'ALL';
-		currentTicker = arbitrages[0].transactions[0].pair;
+		//currentTicker = arbitrages[0].transactions[0].pair;
 		arbitrageChannelInfo.channel = 'bestArbitrage';
-		const marketPrices0 = await this.streamAllMarketPrices(arbitrages[0].transactions[0].pair);
-		const marketPrices1 = await this.streamAllMarketPrices(arbitrages[1].transactions[1].pair);
-		bestArbitrages.arbitragesData = [];
-		bestArbitrages.arbitragesData[0] = {
-			arbitrage: arbitrages[0],
-			marketPrices: marketPrices0,
-		};
-		bestArbitrages.arbitragesData[1] = {
-			arbitrage: arbitrages[1],
-			marketPrices: marketPrices1,
-		};
+
+		let prices = [];
+		let arbitragesData = [];
+		arbitrages.forEach(bestArbits => {
+			prices.push(this.streamAllMarketPrices(bestArbits.transactions[0].pair));
+		});
+		prices = await Promise.all(prices);
+		arbitrages.forEach(bestArbit => {
+			arbitragesData.push({
+				arbitrage: bestArbit,
+				marketPrices: prices.filter(price => price[bestArbit.transactions[0].pair])[0],
+			});
+		});
+
+		bestArbitrages.arbitragesData = arbitragesData;
 		arbitrageChannelInfo.bestArbitrages = bestArbitrages;
 	}
 

@@ -25,6 +25,11 @@ client.on('connectFailed', error => {
 
 const sendPing = connection => {
 	const market = marketsDBmanager.getMarketByWebsocketHost(connection.socket.servername);
+	console.log(
+		'connection.socket.servername: ',
+		JSON.stringify(connection.socket.servername, null, 4)
+	);
+	console.log('sending ping to: ', JSON.stringify(market.name, null, 4));
 	const { pingFrequencyInSeconds } = market.com.api.websocket;
 	if (pingFrequencyInSeconds) {
 		let refreshIntervalId;
@@ -113,7 +118,7 @@ const putSubscriptionId = async (connection, market, messageResponse) => {
 	}
 };
 
-const getPrice = (market, messageResponse) =>
+const getPrice = (market, messageResponse, appTicker) =>
 	marketApiResponseHandler.extractNumberFromTarget(
 		market.com.api.websocket.pathToPrice,
 		messageResponse,
@@ -121,7 +126,7 @@ const getPrice = (market, messageResponse) =>
 			marketTickerName: marketHelper.getMarketPairCurrency(
 				market,
 				'websocket',
-				market.tickerRequest.toUpperCase()
+				appTicker || market.tickerRequest.toUpperCase()
 			),
 			valueType: 'number',
 		}
@@ -150,9 +155,10 @@ const getAppTicker = (market, messageResponse) => {
 };
 
 const putMessage = (connection, rawMessage, parsedMessage, market) => {
-	const price = getPrice(market, parsedMessage);
 	const appTicker = getAppTicker(market, parsedMessage);
+	const price = getPrice(market, parsedMessage, appTicker);
 	const subscriptionId = getSubscriptionId(market, parsedMessage);
+
 	if (price) {
 		if (!marketHostToMessage[connection.socket.servername])
 			marketHostToMessage[connection.socket.servername] = {};
@@ -324,12 +330,6 @@ const addTickerSubscription = async tickers => {
 				}
 				marketToSyncSubscription[market.com.api.websocket.host].tickers.push(ticker);
 			} else {
-				if (market.name === 'Gate.io') {
-					console.log(ticker);
-					console.log(tickers);
-					console.log(market.name);
-					console.log(marketsToConnect.map(m => m.name));
-				}
 				market.tickerRequest = ticker;
 				subscribe(market);
 			}

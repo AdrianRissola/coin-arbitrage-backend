@@ -1,4 +1,3 @@
-// const mongoose = require('mongoose')
 const Market = require('./model/Market');
 
 let marketsFromDB = null;
@@ -36,16 +35,7 @@ const supports = (market, api) => {
 			market?.com?.api.websocket.host &&
 			market.com.api.websocket.url &&
 			market.com.api.websocket.tickerRequest &&
-			market.com.api.websocket.availableTickersToMarketTickers &&
 			market.com.api.websocket.pathToPrice;
-	// market.com &&
-	// market.com.api &&
-	// market.com.api.websocket &&
-	// market.com.api.websocket.host &&
-	// market.com.api.websocket.url &&
-	// market.com.api.websocket.tickerRequest &&
-	// market.com.api.websocket.availableTickersToMarketTickers &&
-	// market.com.api.websocket.pathToPrice;
 	return result;
 };
 
@@ -144,6 +134,9 @@ exports.setAvailableCurrencies = currencies => {
 
 exports.getAvailableCurrencies = () => availableCurrencies;
 
+exports.getAvailableCurrenciesByType = type =>
+	availableCurrencies.filter(currency => currency[type]);
+
 exports.getAllAvailableTickers = () => {
 	const pairCurrencies = [];
 	availableCurrencies?.forEach(ac => {
@@ -192,16 +185,6 @@ const hasWebsocket = (market, tickers) =>
 		market.com.api.websocket.url &&
 		market.com.api.websocket.tickerRequest
 	);
-// !!(
-// 	market.com &&
-// 	market.com.api &&
-// 	market.com.api.websocket &&
-// 	market.com.api.websocket.availableTickersToMarketTickers &&
-// 	hasAtLeastOneTicker(market, 'websocket', tickers) &&
-// 	market.com.api.websocket.host &&
-// 	market.com.api.websocket.url &&
-// 	market.com.api.websocket.tickerRequest
-// );
 
 exports.getMarketsWithWebsocket = (tickers, marketNames) => {
 	let marketsWithWebsockets = null;
@@ -216,14 +199,3 @@ exports.getMarketsWithWebsocket = (tickers, marketNames) => {
 		});
 	return marketsWithWebsockets;
 };
-
-// const getMarketByKeyValue = (key, value) => {
-// 	let marketFound = null
-// 	for (let i = 0; i < marketsFromDB.length; i++) {
-// 		if (marketsFromDB[i][key].toUpperCase() === value.toUpperCase()) {
-// 			marketFound = marketsFromDB[i]
-// 			break
-// 		}
-// 	}
-// 	return marketFound
-// }

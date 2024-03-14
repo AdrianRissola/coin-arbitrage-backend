@@ -56,7 +56,7 @@ const connect = async () => {
 				marketsDBmanager.setMarketsFromDB(result);
 				console.log(
 					`loaded markets(${result.length}) from db: `,
-					marketsDBmanager.getAllMarkets()
+					JSON.stringify(marketsDBmanager.getAllMarkets(), null, 4)
 				);
 			});
 			await AvailableTicker.find({}).then(result => {

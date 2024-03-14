@@ -72,8 +72,11 @@ exports.onRequest = (wsServer, request) => {
 				if (validatedRequest.jsonData.ticker) {
 					const tickers =
 						validatedRequest.jsonData.ticker.toUpperCase() === 'ALL'
-							? marketsDBmanager.getAllAvailableTickerNamesByApi('websocket')
+							? marketsDBmanager
+									.getAllAvailableTickers()
+									.map(pairCurrecy => pairCurrecy.name)
 							: [validatedRequest.jsonData.ticker];
+					console.log('openAndSend', validatedRequest.jsonData.ticker, tickers);
 					await webSocketClientService.openAndSend({
 						tickers,
 					});

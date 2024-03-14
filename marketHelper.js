@@ -33,7 +33,7 @@ exports.getAppTicker = (market, api, marketTickerInfo) => {
 		);
 		pair = market.com.api[api].tickers.filter(
 			t => t.replace('-', '') === marketTickerUpperCase
-		);
+		)[0];
 	}
 	return pair;
 };
