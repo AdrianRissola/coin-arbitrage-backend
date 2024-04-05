@@ -24,6 +24,8 @@ router.get('/coin-arbitrage/crypto/available-tickers', marketController.getAllAv
 
 router.post('/coin-arbitrage/crypto/markets', marketController.saveMarket);
 
+router.post('/coin-arbitrage/crypto/currency', marketController.saveCurrency);
+
 router.get('/coin-arbitrage/crypto/current-arbitrages', arbitragesController.getArbitrages);
 
 router.get(

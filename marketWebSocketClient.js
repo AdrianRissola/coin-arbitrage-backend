@@ -15,10 +15,10 @@ const marketToSyncSubscription = {};
 
 client.on('connectFailed', error => {
 	console.log(
-		`Connect Error for: ${
+		`connectFailed for: ${
 			client?.socket?.servername ||
 			client?.response?.client?.servername ||
-			`WebSocketClient: ${client}`
+			`WebSocketClient.url.href: ${client?.url.href}`
 		} ${error.toString()}`
 	);
 });
@@ -159,7 +159,7 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	const price = getPrice(market, parsedMessage, appTicker);
 	const subscriptionId = getSubscriptionId(market, parsedMessage);
 
-	if (price) {
+	if (price && marketHelper.isAvailablePairCurrencyByMarket(parsedMessage, market)) {
 		if (!marketHostToMessage[connection.socket.servername])
 			marketHostToMessage[connection.socket.servername] = {};
 		marketHostToMessage[connection.socket.servername].connected = connection.connected;

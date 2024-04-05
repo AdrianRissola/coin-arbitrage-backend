@@ -63,7 +63,6 @@ const websocketSchema = new mongoose.Schema({
 	url: String,
 	tickerRequest: String,
 	unsubscribeTickerRequest: String,
-	// availableTickersToMarketTickers: availableTickersToMarketTickersSchema,
 	pairCurrencies: [pairCurrencySchema],
 	tickers: [],
 	tickerPattern: tickerPatternSchema,
@@ -73,6 +72,7 @@ const websocketSchema = new mongoose.Schema({
 	tickerTextPattern: String,
 	tickerKeyIndex: Number,
 	pingFrequencyInSeconds: Number,
+	isAvailablePairCurrencyFn: mongoose.Schema.Types.Mixed,
 });
 
 const restSchema = new mongoose.Schema({

@@ -150,7 +150,7 @@ exports.getAllAvailableTickers = () => {
 			) {
 				const pairCurrency = {
 					name: ac.symbol.concat('-').concat(ac2.symbol),
-					description: ac.description.concat(' - ').concat(ac2.description),
+					description: ac.name.concat(' - ').concat(ac2.name),
 				};
 				pairCurrencies.push(pairCurrency);
 			}
@@ -158,6 +158,38 @@ exports.getAllAvailableTickers = () => {
 	});
 	pairCurrencies.sort();
 	return pairCurrencies;
+};
+
+exports.getAllAvailableTickersByCurrency = currency => {
+	const pairCurrencies = [];
+	availableCurrencies.forEach(ac => {
+		const pairCurrencyName = ac.symbol.concat('-').concat(currency.symbol);
+		if (ac.symbol !== currency.symbol) {
+			if (
+				ac.base &&
+				currency.quote &&
+				!pairCurrencies.some(pc => pc.name === pairCurrencyName)
+			) {
+				const pairCurrency = {
+					name: ac.symbol.concat('-').concat(currency.symbol),
+					description: ac.name.concat(' - ').concat(currency.name),
+				};
+				pairCurrencies.push(pairCurrency);
+			}
+			if (
+				ac.quote &&
+				currency.base &&
+				!pairCurrencies.some(pc => pc.name === pairCurrencyName)
+			) {
+				const pairCurrency = {
+					name: currency.symbol.concat('-').concat(ac.symbol),
+					description: currency.name.concat(' - ').concat(ac.name),
+				};
+				pairCurrencies.push(pairCurrency);
+			}
+		}
+	});
+	return pairCurrencies.sort();
 };
 
 exports.getAllAvailableTickersByApi = api =>

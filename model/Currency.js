@@ -6,7 +6,7 @@ const currencySchema = new mongoose.Schema({
 	symbol: String,
 	quote: Boolean,
 	base: Boolean,
-	description: String,
+	name: String,
 });
 
 const Currency = model('Currency', currencySchema);

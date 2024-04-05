@@ -1,4 +1,5 @@
 const marketService = require('../service/marketService');
+const currencyService = require('../service/currencyService');
 const marketsDBmanager = require('../marketsDBmanager');
 const errorHelper = require('../errorHelper');
 
@@ -104,4 +105,39 @@ exports.saveMarket = async (request, response, next) => {
 		}
 	}
 	return result;
+};
+
+exports.saveCurrency = async (request, response, next) => {
+	let result = null;
+	const newCurrency = request.body;
+	if (!isValidCurrency(newCurrency, next))
+		next(errorHelper.errors.BAD_REQUEST('Currency is invalid'));
+	else {
+		try {
+			const savedCurrency = await currencyService.saveCurrency(newCurrency);
+			result = response.json(savedCurrency);
+		} catch (error) {
+			next(error);
+		}
+	}
+	return result;
+};
+
+const isValidCurrency = (currency, next) => {
+	let alreadyExists = false;
+	if (marketsDBmanager.getAvailableCurrencies().some(ac => ac.symbol === currency.symbol)) {
+		alreadyExists = true;
+		next(
+			errorHelper.errors.BAD_REQUEST('Currency symbol ' + currency.symbol + ' already exists')
+		);
+	}
+	return (
+		!alreadyExists &&
+		currency.symbol.length >= 3 &&
+		currency.symbol.length <= 5 &&
+		currency.symbol.toUpperCase() !== currency.symbol.toLowerCase() &&
+		currency.symbol === currency.symbol.toUpperCase() &&
+		(currency.base || currency.quote) &&
+		currency.name
+	);
 };

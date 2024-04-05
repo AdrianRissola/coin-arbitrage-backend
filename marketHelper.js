@@ -56,3 +56,31 @@ exports.getMarketPairCurrency = (market, api, pairCurrency) => {
 		: base;
 	return base.concat(market.com.api[api].tickerPattern.separator).concat(quote);
 };
+
+exports.isAvailablePairCurrencyByMarket = (parsedMessage, market) => {
+	let isAvailablePairCurrencyByMarket = true;
+
+	if (
+		market.com.api.websocket.isAvailablePairCurrencyFn &&
+		market.com.api.websocket.isAvailablePairCurrencyFn.code
+	) {
+		const isAvailablePairCurrencyFn = eval(
+			`(${market.com.api.websocket.isAvailablePairCurrencyFn.code})`
+		);
+		isAvailablePairCurrencyByMarket = isAvailablePairCurrencyFn(parsedMessage);
+		if (!isAvailablePairCurrencyByMarket) {
+			console.log(
+				`Pair currency from ${market.name} in ${JSON.stringify(
+					parsedMessage
+				)} is not available`
+			);
+			throw new Error(
+				`Error: Pair currency from ${market.name} in ${JSON.stringify(
+					parsedMessage
+				)} is not available`
+			);
+		}
+	}
+
+	return isAvailablePairCurrencyByMarket;
+};

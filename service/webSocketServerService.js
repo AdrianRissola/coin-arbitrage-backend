@@ -44,20 +44,7 @@ const getAllArbitrages = async filters => {
 	let arbitrages = null;
 	if (allMarketTickersStream) {
 		Object.keys(allMarketTickersStream).forEach(host => {
-			// if (
-			// 	allMarketTickersStream[host].connected &&
-			// 	filters.top === 1 &&
-			// 	filters.ticker === 'BTC-TUSD'
-			// )
 			if (allMarketTickersStream[host].connected) {
-				// console.log(
-				// 	'filters.ticker.toUpperCase(): ',
-				// 	host,
-				// 	filters.ticker.toUpperCase(),
-				// 	JSON.stringify(
-				// 		allMarketTickersStream[host].data.tickerPrices[filters.ticker.toUpperCase()]
-				// 	)
-				// );
 				const price =
 					allMarketTickersStream[host].data.tickerPrices[filters.ticker.toUpperCase()];
 				if (price)
@@ -93,7 +80,6 @@ const getArbitrageByTicker = async ticker => {
 
 const getBestArbitrage = async () => {
 	const availableTickers = marketsDBmanager.getAllAvailableTickers();
-	//console.log('availableTickers: ', availableTickers);
 	let arbitragesList = [];
 	availableTickers.forEach(availableTicker => {
 		arbitragesList.push(getAllArbitrages({ ticker: availableTicker.name, top: 1 }));
@@ -105,9 +91,7 @@ const getBestArbitrage = async () => {
 	let quoteCurrencyBestArbitrageList = null;
 	if (arbitragesList && arbitragesList.length > 0) {
 		const quoteCurrencies = marketsDBmanager.getAvailableCurrenciesByType('quote');
-		//console.log('quoteCurrencies: ', quoteCurrencies);
 		const tusd = arbitragesList.filter(a => a.transactions[0].pair.split('-')[1] === 'USDT');
-		//console.log('tusdddd: ', JSON.stringify(tusd));
 		quoteCurrencyBestArbitrageList = quoteCurrencies
 			.map(qc => {
 				return arbitragesList
@@ -143,7 +127,6 @@ exports.getArbitrageChannelInfo = async ticker => {
 	} else {
 		arbitrages = await getBestArbitrage();
 		arbitrageChannelInfo.ticker = 'ALL';
-		//currentTicker = arbitrages[0].transactions[0].pair;
 		arbitrageChannelInfo.channel = 'bestArbitrage';
 
 		let prices = [];
