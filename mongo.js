@@ -1,9 +1,10 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Market = require('./model/Market');
-const AvailableTicker = require('./model/AvailableTicker');
 const Currency = require('./model/Currency');
 const marketsDBmanager = require('./marketsDBmanager');
+const marketRepository = require('./repository/marketRepository');
+const currencyRepository = require('./repository/currencyRepository');
 
 const helper = require('./test/testHelper');
 
@@ -45,54 +46,37 @@ const restoreDB = async () => {
 };
 // restoreDB();
 
-const connect = async () => {
-	console.log('connecting db...');
-	await mongoose
-		.connect(dbUri)
-		.then(async () => {
-			console.log('database conected');
-			await Market.find({}).then(result => {
-				console.log(`loading markets(${result.length}) from db...`);
-				marketsDBmanager.setMarketsFromDB(result);
-				console.log(
-					`loaded markets(${result.length}) from db: `,
-					JSON.stringify(marketsDBmanager.getAllMarkets(), null, 4)
-				);
+let isConnected = false;
+const connect = (async () => {
+	if (!isConnected) {
+		console.log('connecting db...');
+		return await mongoose
+			.connect(dbUri)
+			.then(async () => {
+				console.log('database connected');
+				isConnected = true;
+				return true;
+			})
+			.catch(err => {
+				console.log('error: ', err);
+				console.error('error: ', err);
+				return false;
 			});
-			await AvailableTicker.find({}).then(result => {
-				console.log(`loading available Tickers(${result.length}) from db...`);
-				marketsDBmanager.setAvailableTickers(result);
-				console.log(
-					`loaded available Tickers(${result.length}) from db: `,
-					marketsDBmanager.getAllAvailableTickers()
-				);
-				// mongoose.connection.close()  ???
-			});
-			await Currency.find({}).then(result => {
-				console.log(`loading available currencies(${result.length}) from db...`);
-				marketsDBmanager.setAvailableCurrencies(result);
-				console.log(
-					`loaded available currencies(${result.length}) from db: `,
-					marketsDBmanager.getAvailableCurrencies()
-				);
-				console.log(
-					`available pair currencies(${result.length}): `,
-					marketsDBmanager.getAllAvailableTickers()
-				);
-				// mongoose.connection.close()  ???
-			});
-		})
-		.catch(err => {
-			console.log('error: ', err);
-			console.error('error: ', err);
-		});
-};
-
-const exec = (async () => {
-	await connect();
+	}
 })();
 
-module.exports = exec;
+// const exec = (async () => {
+// 	const connected = await connect();
+// 	if (connected) {
+// 		const markets = await marketRepository.getAll();
+// 		marketsDBmanager.setMarketsFromDB(markets);
+// 		const currencies = await currencyRepository.getAll();
+// 		marketsDBmanager.setAvailableCurrencies(currencies);
+// 		//currencyRepository.init(currencies);
+// 	}
+// })();
+
+//module.exports = exec;
 
 // exports.connect = async ()=>{
 //     console.log('connecting db...')

@@ -45,9 +45,7 @@ const toMarketDto = market => ({
 	name: market.name,
 	website: market.website,
 	tickers: {
-		rest: Object.keys(market.availableTickersToMarketTickers.toObject()).filter(
-			ticker => ticker !== '_id'
-		),
+		rest: [],
 		websocket: getWebsocketTickers(market),
 	},
 	tickerRestEndpoint: getTickerRestEndpoint(market),

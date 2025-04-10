@@ -150,7 +150,7 @@ const getAppTicker = (market, messageResponse) => {
 			marketHostToSubscriptionId[market.com.api.websocket.host][
 				getSubscriptionId(market, messageResponse)
 			];
-	if (!appTicker) console.log('appTicker not found:', market.name, messageResponse);
+	// if (!appTicker) console.log('appTicker not found:', market.name, messageResponse);
 	return appTicker;
 };
 
