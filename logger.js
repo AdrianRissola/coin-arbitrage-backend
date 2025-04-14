@@ -10,6 +10,7 @@ const isEnabled = () => ({
 	'stream.crypto.com': false,
 	'api-pub.bitfinex.com': false,
 	'ws.okx.com': false,
+	'api.upbit.com': false,
 });
 
 exports.logDataByHost = (host, data) => {

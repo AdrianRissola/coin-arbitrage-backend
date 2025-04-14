@@ -51,6 +51,7 @@ const tickerPatternSchema = new mongoose.Schema({
 	quoteCurrencyCaseFunction: String,
 	separator: String,
 	currencies: [appSymbolToMarketSymbolSchema],
+	quoteCurrencyFirst: Boolean,
 });
 
 const pairCurrencySchema = new mongoose.Schema({
@@ -73,6 +74,7 @@ const websocketSchema = new mongoose.Schema({
 	tickerKeyIndex: Number,
 	pingFrequencyInSeconds: Number,
 	isAvailablePairCurrencyFn: mongoose.Schema.Types.Mixed,
+	sendFunction: String,
 });
 
 const restSchema = new mongoose.Schema({

@@ -56,6 +56,12 @@ const updateMarketsToConnect = connection => {
 	return market;
 };
 
+const sendWsMessage = (connection, sendFunction, payload) => {
+	const sendWsFunction = !sendFunction ? 'sendUTF' : sendFunction;
+	const message = sendWsFunction === 'sendUTF' ? payload : Buffer.from(payload, 'utf8');
+	connection[sendWsFunction](message);
+};
+
 const subscribe = async market => {
 	let tickerToSubscribe = null;
 	const ticker = market.tickerRequest.toUpperCase();
@@ -78,7 +84,7 @@ const subscribe = async market => {
 					market.com.api.websocket.host
 				)}: ${tickerRequest}`
 			);
-			connection.sendUTF(tickerRequest);
+			sendWsMessage(connection, market.com.api.websocket.sendFunction, tickerRequest);
 			connection.currentTickerSubscription = ticker;
 		} else {
 			console.log(
@@ -230,8 +236,18 @@ client.on('connect', connection => {
 	});
 
 	connection.on('message', async message => {
-		if (message.type === 'utf8') {
-			const parsedMessage = JSON.parse(message.utf8Data);
+		if (message.type === 'utf8' || message.type === 'binary') {
+			let parsedMessage = null;
+
+			if (message.type === 'utf8') {
+				parsedMessage = JSON.parse(message.utf8Data);
+			}
+
+			if (message.type === 'binary') {
+				const buffer = Buffer.from(message.binaryData);
+				parsedMessage = JSON.parse(buffer.toString());
+			}
+
 			const foundMmarket = marketsDBmanager.getMarketByWebsocketHost(
 				connection.socket.servername
 			);

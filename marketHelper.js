@@ -1,8 +1,14 @@
+const reversePairCurrency = (pairCurrency, isQuoteCurrencyFirst) =>
+	isQuoteCurrencyFirst ? pairCurrency.split('-').reverse().join('-') : pairCurrency;
+
 exports.getAppTicker = (market, api, marketTickerInfo) => {
 	const { tickerTextPattern } = market.com.api[api];
-	const marketTicker = tickerTextPattern
+	let marketTicker = tickerTextPattern
 		? marketTickerInfo.replace(tickerTextPattern.replace('${ticker}', ''), '')
 		: marketTickerInfo;
+
+	const isQuoteCurrencyFirst = market.com.api[api].tickerPattern.quoteCurrencyFirst;
+	marketTicker = reversePairCurrency(marketTicker, isQuoteCurrencyFirst);
 
 	let pair = null;
 	if (market.com.api[api].tickerPattern.separator) {
@@ -31,15 +37,17 @@ exports.getAppTicker = (market, api, marketTickerInfo) => {
 			market.com.api[api].tickerPattern.prefix,
 			''
 		);
-		pair = market.com.api[api].tickers.filter(
+		[pair] = market.com.api[api].tickers.filter(
 			t => t.replace('-', '') === marketTickerUpperCase
-		)[0];
+		);
 	}
 	return pair;
 };
 
 exports.getMarketPairCurrency = (market, api, pairCurrency) => {
-	let [base, quote] = pairCurrency.split('-');
+	const isQuoteCurrencyFirst = market.com.api[api].tickerPattern.quoteCurrencyFirst;
+	const fixedPairCurrency = reversePairCurrency(pairCurrency, isQuoteCurrencyFirst);
+	let [base, quote] = fixedPairCurrency.split('-');
 	const baseMarketSymbol = market.com.api.websocket.tickerPattern.currencies?.filter(
 		currency => currency.symbol === base
 	)[0]?.marketSymbol;
