@@ -7,7 +7,8 @@
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "start": "cross-env NODE_ENV=production node server.js",
     "test": "cross-env NODE_ENV=test jest --runInBand -verbose",
-    "test2": "cross-env NODE_ENV=test jest --runInBand -verbose --detectOpenHandles"
+    "test2": "cross-env NODE_ENV=test jest --runInBand -verbose --detectOpenHandles",
+    "test:security": "node --test test/security.test.cjs"
   },
   "author": "",
   "license": "ISC",
