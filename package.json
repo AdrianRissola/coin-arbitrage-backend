@@ -6,9 +6,24 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "start": "cross-env NODE_ENV=production node server.js",
-    "test": "cross-env NODE_ENV=test jest --runInBand -verbose",
-    "test2": "cross-env NODE_ENV=test jest --runInBand -verbose --detectOpenHandles",
-    "test:security": "node --test test/security.test.cjs"
+    "test": "node test/backend/run.cjs",
+    "test2": "node test/backend/run.cjs --detect-open-handles",
+    "test:unit": "node test/backend/run.cjs --suite unit",
+    "test:services": "node test/backend/run.cjs --suite services",
+    "test:schema": "node test/backend/run.cjs --suite schema",
+    "test:all": "node test/backend/run.cjs --suite all",
+    "test:ci": "node test/backend/run.cjs --suite all --coverage --detect-open-handles",
+    "test:lint": "eslint --no-cache --ext .js,.cjs --max-warnings 0 test/backend test/integration-contracts",
+    "test:api": "node test/backend/run.cjs --suite api",
+    "test:websocket": "node test/backend/run.cjs --suite websocket",
+    "test:websocket-wire": "node test/backend/run.cjs --suite websocket-wire",
+    "test:persistence": "node test/backend/run.cjs --suite persistence",
+    "test:coverage": "node test/backend/run.cjs --coverage",
+    "test:security": "node --test test/security.test.cjs",
+    "test:bootstrap": "node --test test/integration-contracts/bootstrap.test.cjs",
+    "test:fixtures": "node test/integration-contracts/verify.cjs",
+    "test:int": "node test/integration-contracts/run.cjs",
+    "test:int:coverage": "node test/integration-contracts/run.cjs --coverage --detect-open-handles"
   },
   "author": "",
   "license": "ISC",
@@ -35,6 +50,7 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "globalTeardown": "<rootDir>/test-teardown-globals.js"
+    "watchman": false,
+    "globalSetup": "<rootDir>/test/backend/support/require-runner.cjs"
   }
 }

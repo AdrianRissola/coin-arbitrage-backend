@@ -1,0 +1,244 @@
+const { captureTimers, connection, deliver } = require('../support/ws-runtime.cjs');
+const { deferred } = require('../support/b2-fixtures.cjs');
+
+let clock;
+let service;
+let client;
+let handler;
+let requests;
+const accept = (...origins) => {
+	const origin = origins.length ? origins[0] : 'http://local.invalid';
+	const socket = connection('browser.invalid');
+	const request = { origin, accept: jest.fn(() => socket), reject: jest.fn() };
+	handler.onRequest({}, request);
+	requests.push({ request, socket });
+	return { request, socket };
+};
+const load = (mode = 'test') => {
+	process.env.NODE_ENV = mode;
+	jest.isolateModules(() => {
+		handler = jest.requireActual('../../../webSocketServerHandler');
+	});
+};
+const environment = {};
+beforeEach(() => {
+	['NODE_ENV', 'LOCAL_ALLOWED_ORIGINS', 'PROD_ALLOWED_ORIGINS'].forEach(key => {
+		environment[key] = process.env[key];
+	});
+	process.env.LOCAL_ALLOWED_ORIGINS = '["http://local.invalid"]';
+	process.env.PROD_ALLOWED_ORIGINS = '["https://production.invalid"]';
+	jest.spyOn(console, 'log').mockImplementation(() => {});
+	clock = captureTimers();
+	requests = [];
+	service = {
+		getArbitrageChannelInfo: jest.fn(async ticker => ({
+			channel: 'arbitrage',
+			ticker,
+			handlerOnly: true,
+		})),
+		getMarketsChannelInfo: jest.fn(async () => ({
+			connectedMarkets: ['alpha.invalid'],
+			disconnectedMarkets: [],
+		})),
+	};
+	client = { openAndSend: jest.fn(async () => ({})), close: jest.fn() };
+	jest.doMock('../../../service/webSocketServerService', () => service);
+	jest.doMock('../../../service/webSocketClientService', () => client);
+	jest.doMock('../../../marketsDBmanager', () => ({
+		getAllAvailableTickers: () => [{ name: 'BTC-USDT' }, { name: 'ETH-USD' }],
+	}));
+	load();
+});
+afterEach(() => {
+	requests.forEach(({ socket }) => socket.removeAllListeners());
+	clock.close();
+	Object.entries(environment).forEach(([key, value]) => {
+		if (value === undefined) delete process.env[key];
+		else process.env[key] = value;
+	});
+});
+
+test('local allowed origins accept exactly and emit the literal welcome shape', () => {
+	const { request, socket } = accept();
+	expect(request.accept).toHaveBeenCalledWith(null, 'http://local.invalid');
+	expect(JSON.parse(socket.sent[0])).toEqual({
+		response: 'http://local.invalid welcome to real-time monitor',
+	});
+});
+test.each([
+	'http://local.invalid/',
+	'https://local.invalid',
+	'http://evil.invalid',
+	undefined,
+	null,
+])('origin %p is rejected without handlers or welcome', origin => {
+	const { request, socket } = accept(origin);
+	expect(request.reject).toHaveBeenCalledTimes(1);
+	expect(socket.sent).toEqual([]);
+	expect(socket.eventNames()).toEqual([]);
+});
+test('production uses its own exact origin allowlist', () => {
+	load('production');
+	expect(accept('http://local.invalid').request.reject).toHaveBeenCalledTimes(1);
+	expect(accept('https://production.invalid').request.accept).toHaveBeenCalledTimes(1);
+});
+test('invalid origin configuration throws before accepting a connection', () => {
+	process.env.LOCAL_ALLOWED_ORIGINS = 'not json';
+	expect(() => load()).toThrow(SyntaxError);
+});
+test('accepted clients receive independent monotonically increasing connection IDs', () => {
+	expect([accept().socket.id, accept().socket.id]).toEqual([0, 1]);
+});
+test('invalid JSON returns both error strings without opening exchange feeds', async () => {
+	const { socket } = accept();
+	await deliver(socket, 'not json');
+	expect(JSON.parse(socket.sent[1])).toEqual([
+		expect.stringMatching(/^invalid json:/),
+		'invalid request: channel and ticker fields are mandatory',
+	]);
+	expect(client.openAndSend).not.toHaveBeenCalled();
+});
+test.each(['binary', 'ping', 'close'])(
+	'%s payloads are ignored without parsing JSON',
+	async type => {
+		const { socket } = accept();
+		await deliver(socket, 'not json', type);
+		expect(socket.sent).toHaveLength(1);
+		expect(clock.intervals.size).toBe(0);
+	}
+);
+test('arbitrage starts only a 1000ms interval after feed opening settles', async () => {
+	const gate = deferred();
+	client.openAndSend.mockReturnValue(gate.promise);
+	const { socket } = accept();
+	const pending = deliver(socket, { channel: 'arbitrage', ticker: 'btc-usdt' });
+	expect(clock.intervals.size).toBe(0);
+	gate.resolve({});
+	await pending;
+	expect(client.openAndSend).toHaveBeenCalledWith({ tickers: ['btc-usdt'] });
+	expect(socket.sent).toHaveLength(1);
+	const [timer] = clock.intervals.keys();
+	expect(timer.delay).toBe(1000);
+	await clock.run(timer);
+	expect(service.getArbitrageChannelInfo).toHaveBeenCalledWith('btc-usdt');
+	expect(JSON.parse(socket.sent[1])).toEqual({
+		channel: 'arbitrage',
+		ticker: 'btc-usdt',
+		handlerOnly: true,
+	});
+});
+test.each(['all', 'ALL', 'aLl'])(
+	'ticker %s expands real manager names before opening feeds',
+	async ticker => {
+		const { socket } = accept();
+		await deliver(socket, { channel: 'bestArbitrage', ticker });
+		expect(client.openAndSend).toHaveBeenCalledWith({ tickers: ['BTC-USDT', 'ETH-USD'] });
+	}
+);
+test('frontend capital Markets with no ticker is accepted despite the mandatory-fields error accumulator', async () => {
+	const { socket } = accept();
+	await deliver(socket, { channel: 'Markets' });
+	const [timer] = clock.intervals.keys();
+	await clock.run(timer);
+	expect(client.openAndSend).not.toHaveBeenCalled();
+	expect(JSON.parse(socket.sent[1])).toEqual({
+		channel: 'markets',
+		markets: { connectedMarkets: ['alpha.invalid'], disconnectedMarkets: [] },
+	});
+});
+test.each(['markets', 'Arbitrage', 'bestarbitrage', 'unknown'])(
+	'case-sensitive/unknown channel %s opens feeds but creates no update interval',
+	async channel => {
+		const { socket } = accept();
+		await deliver(socket, { channel, ticker: 'BTC-USDT' });
+		expect(client.openAndSend).toHaveBeenCalledTimes(1);
+		expect(clock.intervals.size).toBe(0);
+	}
+);
+test('empty objects are accepted without returning the accumulated validation message', async () => {
+	const { socket } = accept();
+	await deliver(socket, {});
+	expect(socket.sent).toHaveLength(1);
+});
+test('missing arbitrage ticker still schedules a callback with undefined', async () => {
+	const { socket } = accept();
+	await deliver(socket, { channel: 'arbitrage' });
+	await clock.run([...clock.intervals.keys()][0]);
+	expect(service.getArbitrageChannelInfo).toHaveBeenCalledWith(undefined);
+});
+test.each([null, 3, true])(
+	'parsed primitive %p retains its source failure or empty acceptance',
+	async payload => {
+		const { socket } = accept();
+		if (payload === null) await expect(deliver(socket, payload)).rejects.toThrow(TypeError);
+		else await deliver(socket, payload);
+		expect(clock.intervals.size).toBe(0);
+	}
+);
+test('non-string ticker rejects at toUpperCase and never schedules updates', async () => {
+	const { socket } = accept();
+	await expect(deliver(socket, { channel: 'arbitrage', ticker: 42 })).rejects.toThrow(
+		/toUpperCase/
+	);
+	expect(clock.intervals.size).toBe(0);
+});
+test('different subscriptions clear known interval fields before installing the replacement', async () => {
+	const { socket } = accept();
+	await deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	const previous = socket.arbitrageIntervalId;
+	await deliver(socket, { channel: 'Markets' });
+	expect(clock.intervals.has(previous)).toBe(false);
+	expect(clock.intervals.size).toBe(1);
+});
+test('identical subscriptions leak the older interval and disconnect clears only the newest', async () => {
+	const { socket } = accept();
+	const request = { channel: 'arbitrage', ticker: 'BTC-USDT' };
+	await deliver(socket, request);
+	const first = socket.arbitrageIntervalId;
+	await deliver(socket, request);
+	expect(clock.intervals.size).toBe(2);
+	socket.close();
+	expect([...clock.intervals.keys()]).toEqual([first]);
+	expect(client.close).not.toHaveBeenCalled();
+});
+test('independent browsers changing channels do not clear each other intervals', async () => {
+	const first = accept().socket;
+	const second = accept().socket;
+	await deliver(first, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	const timer = first.arbitrageIntervalId;
+	await deliver(second, { channel: 'arbitrage', ticker: 'ETH-USD' });
+	await deliver(second, { channel: 'Markets' });
+	expect(clock.intervals.has(timer)).toBe(true);
+	expect(clock.intervals.size).toBe(2);
+});
+test('arbitrage failures are caught and cancel the current interval', async () => {
+	const { socket } = accept();
+	service.getArbitrageChannelInfo.mockRejectedValue(new Error('controlled service failure'));
+	await deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	await clock.run(socket.arbitrageIntervalId);
+	expect(clock.intervals.size).toBe(0);
+});
+test('closed arbitrage connection still attempts one send after cancelling its interval', async () => {
+	const { socket } = accept();
+	await deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	socket.connected = false;
+	await clock.run(socket.arbitrageIntervalId);
+	expect(clock.intervals.size).toBe(0);
+	expect(socket.sendUTF).toHaveBeenCalledTimes(2);
+});
+test('Markets disconnect leaves its interval and uncaught callback rejection intact until fixture cleanup', async () => {
+	const { socket } = accept();
+	await deliver(socket, { channel: 'Markets' });
+	socket.close();
+	expect(clock.intervals.size).toBe(1);
+	service.getMarketsChannelInfo.mockRejectedValue(new Error('controlled markets failure'));
+	await expect(clock.run(socket.marketsIntervalId)).rejects.toThrow('controlled markets failure');
+});
+test('feed opening rejection propagates and does not install an interval', async () => {
+	const { socket } = accept();
+	client.openAndSend.mockRejectedValue(new Error('controlled feed failure'));
+	await expect(deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' })).rejects.toThrow(
+		'controlled feed failure'
+	);
+	expect(clock.intervals.size).toBe(0);
+});
