@@ -135,7 +135,7 @@ test.each(['all', 'ALL', 'aLl'])(
 		expect(client.openAndSend).toHaveBeenCalledWith({ tickers: ['BTC-USDT', 'ETH-USD'] });
 	}
 );
-test('frontend capital Markets with no ticker is accepted despite the mandatory-fields error accumulator', async () => {
+test('frontend capital Markets with no ticker is a valid subscription', async () => {
 	const { socket } = accept();
 	await deliver(socket, { channel: 'Markets' });
 	const [timer] = clock.intervals.keys();
@@ -155,32 +155,70 @@ test.each(['markets', 'Arbitrage', 'bestarbitrage', 'unknown'])(
 		expect(clock.intervals.size).toBe(0);
 	}
 );
-test('empty objects are accepted without returning the accumulated validation message', async () => {
-	const { socket } = accept();
-	await deliver(socket, {});
-	expect(socket.sent).toHaveLength(1);
-});
-test('missing arbitrage ticker still schedules a callback with undefined', async () => {
-	const { socket } = accept();
-	await deliver(socket, { channel: 'arbitrage' });
-	await clock.run([...clock.intervals.keys()][0]);
-	expect(service.getArbitrageChannelInfo).toHaveBeenCalledWith(undefined);
-});
-test.each([null, 3, true])(
-	'parsed primitive %p retains its source failure or empty acceptance',
+test.each(
+	[
+		null,
+		[],
+		['arbitrage', 'BTC-USDT'],
+		3,
+		0,
+		true,
+		false,
+		'',
+		'arbitrage',
+		{},
+		{ ticker: 'BTC-USDT' },
+		...[undefined, null, '', '   ', 42, true, [], {}].map(channel => ({
+			channel,
+			ticker: 'BTC-USDT',
+		})),
+		...['arbitrage', 'bestArbitrage', 'Markets', 'unknown'].flatMap(channel =>
+			[null, '', '   ', 0, 42, true, false, [], {}].map(ticker => ({ channel, ticker }))
+		),
+		...['arbitrage', 'bestArbitrage', 'unknown'].map(channel => ({ channel })),
+	].map(payload => [payload])
+)(
+	'invalid request %j returns an error without opening feeds or scheduling updates',
 	async payload => {
 		const { socket } = accept();
-		if (payload === null) await expect(deliver(socket, payload)).rejects.toThrow(TypeError);
-		else await deliver(socket, payload);
+		await expect(deliver(socket, JSON.stringify(payload))).resolves.toBeUndefined();
+		expect(JSON.parse(socket.sent[1])).toEqual([
+			'invalid request: channel and ticker fields are mandatory',
+		]);
+		expect(client.openAndSend).not.toHaveBeenCalled();
 		expect(clock.intervals.size).toBe(0);
+		expect(service.getArbitrageChannelInfo).not.toHaveBeenCalled();
+		expect(service.getMarketsChannelInfo).not.toHaveBeenCalled();
 	}
 );
-test('non-string ticker rejects at toUpperCase and never schedules updates', async () => {
+test.each([null, { channel: 'arbitrage' }, { channel: 'Markets', ticker: [] }])(
+	'invalid request %j preserves an existing valid subscription',
+	async payload => {
+		const { socket } = accept();
+		await deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+		const [timer] = clock.intervals.keys();
+		await deliver(socket, payload);
+		expect(JSON.parse(socket.sent[1])).toEqual([
+			'invalid request: channel and ticker fields are mandatory',
+		]);
+		expect([...clock.intervals.keys()]).toEqual([timer]);
+		expect(client.openAndSend).toHaveBeenCalledTimes(1);
+		await clock.run(timer);
+		expect(JSON.parse(socket.sent[2])).toEqual({
+			channel: 'arbitrage',
+			ticker: 'BTC-USDT',
+			handlerOnly: true,
+		});
+	}
+);
+test('a connection accepts a valid subscription after rejecting an invalid request', async () => {
 	const { socket } = accept();
-	await expect(deliver(socket, { channel: 'arbitrage', ticker: 42 })).rejects.toThrow(
-		/toUpperCase/
-	);
-	expect(clock.intervals.size).toBe(0);
+	await deliver(socket, null);
+	await deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	expect(client.openAndSend).toHaveBeenCalledWith({ tickers: ['BTC-USDT'] });
+	expect(clock.intervals.size).toBe(1);
+	await clock.run([...clock.intervals.keys()][0]);
+	expect(JSON.parse(socket.sent[2]).ticker).toBe('BTC-USDT');
 });
 test('different subscriptions clear known interval fields before installing the replacement', async () => {
 	const { socket } = accept();
