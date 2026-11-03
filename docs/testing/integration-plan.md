@@ -45,9 +45,14 @@ core modification still fails. The ownership guard is unchanged.
 No dependency installation, remote checkout, image download, production
 credential or Atlas connection is implicit. The cached image and a local Docker
 daemon must already be available. Local execution used Node `v25.2.1` on macOS
-arm64; Linux/GitHub compatibility has not been executed.
+arm64; paired Linux/GitHub execution has not been verified.
 Place the checkouts in adjacent directories named `backend` and `frontend`
 for native preflight controls; the paired CLI itself accepts an explicit peer.
+
+Standalone backend lint and regression profiles do not require a frontend
+checkout. I3 controls are backend-local. The frontend launcher assertion lives
+in I0, which verifies the pinned pair before loading the launcher from the
+verified frontend root. No peer-dependent assertion is silently skipped.
 
 ## Commands
 

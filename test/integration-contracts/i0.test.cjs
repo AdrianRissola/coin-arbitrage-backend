@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
+const { createRequire } = require('node:module');
 const { checkPair, pins } = require('./pair.cjs');
 const { layout, verifyPair } = require('./catalog.cjs');
 const { createTestEnvironment } = require('./context.cjs');
@@ -69,6 +70,18 @@ test('I0 validates the actual accepted pair and unchanged C0 catalog without inf
 	assert.equal(result.fixtureDigest, pair().fixtureDigest);
 	assert.equal(result.backend.cleanCommitValidation, false);
 	assert.equal(result.frontend.lockfile, result.frontend.lockfileHead);
+});
+test('I0 frontend launcher requires an explicit backend and keeps its own frontend binding', () => {
+	const launcher = createRequire(__filename)(
+		path.join(checkPair(options).frontend.root, 'src/test/integration-contracts/run.cjs')
+	);
+	assert.throws(() => launcher.parse([]), /explicit pinned backend/);
+	assert.throws(
+		() => launcher.parse(['--backend-dir', __dirname, '--frontend-dir', '/other']),
+		/frontend is this checkout/
+	);
+	const parsed = launcher.parse(['--backend-dir', backendDir, '--flows', 'rest']);
+	assert.equal(parsed.args[1], frontendDir);
 });
 test('I0 rejects abbreviated and incorrect expected source revisions before resources', () => {
 	assert.throws(

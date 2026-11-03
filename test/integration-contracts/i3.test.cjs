@@ -7,7 +7,6 @@ const cp = require('node:child_process');
 const { isFrozenCoreFile, inspectRepository, verifyFrozenCore } = require('./pair.cjs');
 const { istanbulSummary, v8Summary } = require('./evidence.cjs');
 const { reportPath } = require('./run.cjs');
-const launcher = require('../../../frontend/src/test/integration-contracts/run.cjs');
 
 test('I3 permits exactly the three integration deliverable documents, not other core paths', () => {
 	const paths = [
@@ -127,18 +126,4 @@ test('I3 rejects output inside any preserved worktree including a symlinked pare
 		reportPath(path.join(temporary, 'safe-report'), [repository]),
 		path.join(fs.realpathSync(temporary), 'safe-report')
 	);
-});
-test('I3 frontend launcher requires an explicit backend and keeps its own frontend binding', () => {
-	assert.throws(() => launcher.parse([]), /explicit pinned backend/);
-	assert.throws(
-		() => launcher.parse(['--backend-dir', __dirname, '--frontend-dir', '/other']),
-		/frontend is this checkout/
-	);
-	const parsed = launcher.parse([
-		'--backend-dir',
-		path.resolve(__dirname, '../..'),
-		'--flows',
-		'rest',
-	]);
-	assert.equal(parsed.args[1], path.resolve(__dirname, '../../../frontend'));
 });

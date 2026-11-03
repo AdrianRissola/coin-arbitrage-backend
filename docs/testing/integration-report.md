@@ -129,3 +129,31 @@ Follow-up evidence is under
 logs, direct-command reports, paired verification and the separate corrected
 checkpoint/review. Production source, ownership guard, dependencies, lockfiles,
 indexes and original worktrees remain outside this correction.
+
+## Standalone CI peer-import correction
+
+The first backend GitHub run at `4a02653` failed `test:lint` before running
+the regression profiles. I3 imported a sibling frontend launcher directly;
+local adjacent checkouts masked the missing module in a standalone checkout.
+
+The unchanged launcher assertions now belong to paired I0 controls. They load
+the launcher only from the frontend root validated by `checkPair`, using the
+existing `createRequire` launcher pattern. I3 no longer imports the peer.
+No lint override, skipped assertion or workflow change was introduced.
+
+Verification used clean local clones without local environment files:
+
+- Before the correction, standalone `test:lint` reproduced the exact
+  `import/no-unresolved` error and exited 1.
+- After the correction, standalone lint and all five I3 controls passed
+  without a sibling frontend checkout.
+- Standalone `test:ci` passed all four backend profiles with coverage and
+  handle diagnostics: 316/88 offline, 84/19 REST, 10/17 WebSocket wire and
+  17/24 persistence, listed as Jest/native counts.
+- Paired native controls remained 70/70 with no skips.
+- The paired transport tests and real App flow passed with handle measurement.
+
+Production source, dependencies, lockfiles, frozen core and ownership guards
+are unchanged. The frontend commit remains `87f8421`; its independent GitHub
+workflow passed. The backend correction requires a successful new GitHub run
+before merging.
