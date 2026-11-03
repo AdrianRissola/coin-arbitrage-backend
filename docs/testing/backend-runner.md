@@ -351,6 +351,17 @@ Already-started service operations are not aborted; their stale results are not
 sent. Browser disconnect does not close shared exchange clients and no
 unsubscribe is invented.
 
+BE-05 regressions require the best-arbitrage channel to await persistence for
+all selected quote-currency records before returning a successful response.
+Rejected queries propagate through the service promise into the existing
+WebSocket callback catch, which logs the error and cancels that browser's update
+timer without closing shared exchanges or the browser connection. Service tests
+cover both completion orders and failures of either or both records. Native
+frames verify the query-failure boundary and subsequent Markets resubscription.
+Saves remain concurrent and non-transactional; another save may finish after one
+fails. Existing insert-error swallowing inside the lower-level save helper is
+unchanged, as are profit selection and the separate empty-ALL-result defect.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
