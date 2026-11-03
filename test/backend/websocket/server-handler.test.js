@@ -228,15 +228,19 @@ test('different subscriptions clear known interval fields before installing the 
 	expect(clock.intervals.has(previous)).toBe(false);
 	expect(clock.intervals.size).toBe(1);
 });
-test('identical subscriptions leak the older interval and disconnect clears only the newest', async () => {
+test.each([
+	{ channel: 'arbitrage', ticker: 'BTC-USDT' },
+	{ channel: 'bestArbitrage', ticker: 'ALL' },
+	{ channel: 'Markets' },
+])('identical subscriptions %j keep one interval and disconnect clears it', async request => {
 	const { socket } = accept();
-	const request = { channel: 'arbitrage', ticker: 'BTC-USDT' };
 	await deliver(socket, request);
-	const first = socket.arbitrageIntervalId;
+	const [first] = clock.intervals.keys();
 	await deliver(socket, request);
-	expect(clock.intervals.size).toBe(2);
+	expect(clock.intervals.has(first)).toBe(false);
+	expect(clock.intervals.size).toBe(1);
 	socket.close();
-	expect([...clock.intervals.keys()]).toEqual([first]);
+	expect(clock.intervals.size).toBe(0);
 	expect(client.close).not.toHaveBeenCalled();
 });
 test('independent browsers changing channels do not clear each other intervals', async () => {
@@ -256,22 +260,129 @@ test('arbitrage failures are caught and cancel the current interval', async () =
 	await clock.run(socket.arbitrageIntervalId);
 	expect(clock.intervals.size).toBe(0);
 });
-test('closed arbitrage connection still attempts one send after cancelling its interval', async () => {
+test.each([
+	{ channel: 'arbitrage', ticker: 'BTC-USDT' },
+	{ channel: 'bestArbitrage', ticker: 'ALL' },
+	{ channel: 'Markets' },
+])('a closed connection skips %j work and cancels its interval', async request => {
 	const { socket } = accept();
-	await deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	await deliver(socket, request);
+	const [timer] = clock.intervals.keys();
 	socket.connected = false;
-	await clock.run(socket.arbitrageIntervalId);
+	await clock.run(timer);
 	expect(clock.intervals.size).toBe(0);
-	expect(socket.sendUTF).toHaveBeenCalledTimes(2);
+	expect(socket.sendUTF).toHaveBeenCalledTimes(1);
+	expect(service.getArbitrageChannelInfo).not.toHaveBeenCalled();
+	expect(service.getMarketsChannelInfo).not.toHaveBeenCalled();
 });
-test('Markets disconnect leaves its interval and uncaught callback rejection intact until fixture cleanup', async () => {
+test('disconnect clears every per-connection interval field', () => {
+	const { socket } = accept();
+	['arbitrageIntervalId', 'priceIntervalId', 'historicalIntervalId', 'marketsIntervalId'].forEach(
+		field => {
+			socket[field] = setInterval(jest.fn(), 1000);
+		}
+	);
+	socket.close();
+	expect(clock.intervals.size).toBe(0);
+	expect(client.close).not.toHaveBeenCalled();
+});
+test('Markets callback failure cancels its interval without an unhandled rejection', async () => {
 	const { socket } = accept();
 	await deliver(socket, { channel: 'Markets' });
-	socket.close();
-	expect(clock.intervals.size).toBe(1);
 	service.getMarketsChannelInfo.mockRejectedValue(new Error('controlled markets failure'));
-	await expect(clock.run(socket.marketsIntervalId)).rejects.toThrow('controlled markets failure');
+	await expect(clock.run(socket.marketsIntervalId)).resolves.toBeUndefined();
+	expect(clock.intervals.size).toBe(0);
+	expect(socket.sendUTF).toHaveBeenCalledTimes(1);
 });
+test.each([
+	{ channel: 'arbitrage', ticker: 'BTC-USDT' },
+	{ channel: 'bestArbitrage', ticker: 'ALL' },
+	{ channel: 'Markets' },
+])('disconnect during pending %j work prevents a late send', async request => {
+	const gate = deferred();
+	service.getArbitrageChannelInfo.mockReturnValue(gate.promise);
+	service.getMarketsChannelInfo.mockReturnValue(gate.promise);
+	const { socket } = accept();
+	await deliver(socket, request);
+	const pending = clock.run([...clock.intervals.keys()][0]);
+	socket.close();
+	gate.resolve({});
+	await pending;
+	expect(clock.intervals.size).toBe(0);
+	expect(socket.sendUTF).toHaveBeenCalledTimes(1);
+	expect(client.close).not.toHaveBeenCalled();
+});
+test.each(
+	[
+		{ channel: 'arbitrage', ticker: 'BTC-USDT' },
+		{ channel: 'bestArbitrage', ticker: 'ALL' },
+		{ channel: 'Markets' },
+	].flatMap(request => [false, true].map(reject => [request, reject]))
+)(
+	'replacing pending %j work (reject=%s) preserves the new timer and sends no stale frame',
+	async (request, reject) => {
+		const gate = deferred();
+		service.getArbitrageChannelInfo.mockReturnValue(gate.promise);
+		service.getMarketsChannelInfo.mockReturnValue(gate.promise);
+		const { socket } = accept();
+		await deliver(socket, request);
+		const pending = clock.run([...clock.intervals.keys()][0]);
+		await deliver(
+			socket,
+			request.channel === 'Markets'
+				? { channel: 'arbitrage', ticker: 'ETH-USDT' }
+				: { channel: 'Markets' }
+		);
+		const [replacement] = clock.intervals.keys();
+		if (reject) gate.reject(new Error('controlled obsolete callback failure'));
+		else gate.resolve({});
+		await expect(pending).resolves.toBeUndefined();
+		expect([...clock.intervals.keys()]).toEqual([replacement]);
+		expect(socket.sendUTF).toHaveBeenCalledTimes(1);
+	}
+);
+test('disconnect during feed opening does not install an interval after closing', async () => {
+	const gate = deferred();
+	client.openAndSend.mockReturnValue(gate.promise);
+	const { socket } = accept();
+	const pending = deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	socket.close();
+	gate.resolve({});
+	await pending;
+	expect(clock.intervals.size).toBe(0);
+	expect(client.close).not.toHaveBeenCalled();
+});
+test('a replacement cancels the old interval before waiting for feed opening', async () => {
+	const { socket } = accept();
+	await deliver(socket, { channel: 'Markets' });
+	const gate = deferred();
+	client.openAndSend.mockReturnValue(gate.promise);
+	const pending = deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+	const duringOpening = clock.intervals.size;
+	gate.resolve({});
+	await pending;
+	expect(duringOpening).toBe(0);
+	expect(clock.intervals.size).toBe(1);
+});
+test.each(['BTC-USDT', 'ETH-USDT'])(
+	'older feed opening cannot replace or duplicate the latest %s subscription',
+	async ticker => {
+		const older = deferred();
+		const newer = deferred();
+		client.openAndSend.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+		const { socket } = accept();
+		const first = deliver(socket, { channel: 'arbitrage', ticker: 'BTC-USDT' });
+		const second = deliver(socket, { channel: 'arbitrage', ticker });
+		newer.resolve({});
+		await second;
+		const [latest] = clock.intervals.keys();
+		older.resolve({});
+		await first;
+		expect([...clock.intervals.keys()]).toEqual([latest]);
+		await clock.run(latest);
+		expect(service.getArbitrageChannelInfo).toHaveBeenCalledWith(ticker);
+	}
+);
 test('feed opening rejection propagates and does not install an interval', async () => {
 	const { socket } = accept();
 	client.openAndSend.mockRejectedValue(new Error('controlled feed failure'));

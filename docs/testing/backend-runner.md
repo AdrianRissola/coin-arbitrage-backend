@@ -339,17 +339,26 @@ string. Invalid requests open no exchange feeds, schedule no updates and leave
 an existing valid subscription unchanged. Native frames verify rejection and a
 subsequent valid ticker-less `Markets` subscription on the same connection.
 
-Historical paired INT audits remain pinned to the test-foundation source and
-core overlay. Their pins are not updated by this production fix, so they reject
-the changed source/test baseline; backend runtime regression profiles remain
-independent of that historical acceptance audit.
-
-Remaining characterised omissions include duplicate intervals, Markets
-disconnect leakage, a send attempt after an arbitrage connection closes, the
-`tikcers` queue mismatch, filtered-stream scalar versus array failure, stale
-per-ticker prices after errors and zero-delay pings when configured frequency is
-one. Browser disconnect does not close shared exchange clients and no
+BE-02 regressions require one per-browser update interval after duplicate or
+replacement subscriptions and no remaining browser intervals after disconnect.
+Cleanup covers arbitrage, price, historical and Markets interval fields. A
+per-connection subscription version prevents superseded or disconnected feed
+opening from installing a timer and prevents stale callbacks from sending or
+cancelling a newer timer. Markets callback failures cancel their current timer
+without an unhandled rejection. Native tests verify these lifecycle changes
+before fixture cleanup and confirm a second browser continues receiving data.
+Already-started service operations are not aborted; their stale results are not
+sent. Browser disconnect does not close shared exchange clients and no
 unsubscribe is invented.
+
+Historical paired INT audits remain pinned to the test-foundation source and
+core overlay. Their pins are not updated by these production fixes, so they
+reject the changed source/test baseline; backend runtime regression profiles
+remain independent of that historical acceptance audit.
+
+Remaining characterised omissions include the `tikcers` queue mismatch,
+filtered-stream scalar versus array failure, stale per-ticker prices after
+errors and zero-delay pings when configured frequency is one.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks

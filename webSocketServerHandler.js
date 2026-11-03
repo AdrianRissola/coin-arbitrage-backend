@@ -47,6 +47,14 @@ const validateRequest = request => {
 };
 
 const openAndConnected = connection => connection.state === 'open' && connection.connected;
+const clearIntervals = connection => {
+	['arbitrageIntervalId', 'priceIntervalId', 'historicalIntervalId', 'marketsIntervalId'].forEach(
+		field => {
+			clearInterval(connection[field]);
+			Object.assign(connection, { [field]: null });
+		}
+	);
+};
 
 let id = 0;
 const connectionIdToSubscription = {};
@@ -58,6 +66,7 @@ exports.onRequest = (wsServer, request) => {
 	}
 
 	const connection = request.accept(null, request.origin);
+	let subscriptionVersion = 0;
 	connection.id = id;
 	connectionIdToSubscription[connection.id] = null;
 	id += 1;
@@ -71,13 +80,26 @@ exports.onRequest = (wsServer, request) => {
 	console.log(`${new Date()} ${request.origin} Connection accepted.`);
 
 	connection.on('message', async message => {
-		if (message.type === 'utf8') {
+		if (message.type === 'utf8' && openAndConnected(connection)) {
 			console.log(
 				`Received Message: ${message.utf8Data} from remote: ${connection.socket.remoteAddress} ${connection.socket.remoteFamily} ${connection.socket.remotePort}`
 			);
 
 			const validatedRequest = validateRequest(message.utf8Data);
 			if (validatedRequest.isValid) {
+				const subscription = `${validatedRequest.jsonData.channel}:${validatedRequest.jsonData.ticker}`;
+				subscriptionVersion += 1;
+				const version = subscriptionVersion;
+				if (connectionIdToSubscription[connection.id]) {
+					console.log(
+						`clearing intervals for current: ${
+							connectionIdToSubscription[connection.id]
+						}`,
+						`received: ${subscription}`
+					);
+				}
+				clearIntervals(connection);
+				connectionIdToSubscription[connection.id] = subscription;
 				if (validatedRequest.jsonData.ticker) {
 					const tickers =
 						validatedRequest.jsonData.ticker.toUpperCase() === 'ALL'
@@ -90,55 +112,32 @@ exports.onRequest = (wsServer, request) => {
 						tickers,
 					});
 				}
-				const subscription = `${validatedRequest.jsonData.channel}:${validatedRequest.jsonData.ticker}`;
-				if (
-					connectionIdToSubscription[connection.id] &&
-					connectionIdToSubscription[connection.id] !== subscription
-				) {
-					console.log(
-						`clearing intervals for current: ${
-							connectionIdToSubscription[connection.id]
-						}`,
-						`received: ${subscription}`
-					);
-					clearInterval(connection.arbitrageIntervalId);
-					clearInterval(connection.priceIntervalId);
-					clearInterval(connection.historicalIntervalId);
-					clearInterval(connection.marketsIntervalId);
-				}
-
-				connectionIdToSubscription[connection.id] = subscription;
-
-				if (
-					validatedRequest.jsonData.channel === 'arbitrage' ||
-					validatedRequest.jsonData.channel === 'bestArbitrage'
-				) {
-					connection.arbitrageIntervalId = setInterval(async () => {
-						try {
-							const arbitrageChannelInfo =
-								await webSocketServerService.getArbitrageChannelInfo(
-									validatedRequest.jsonData.ticker
-								);
-							if (!openAndConnected(connection))
-								clearInterval(connection.arbitrageIntervalId);
-							connection.sendUTF(JSON.stringify(arbitrageChannelInfo));
-						} catch (error) {
-							console.log(
-								`error in setInterval ${validatedRequest.jsonData.channel}: ${error}`
-							);
-							clearInterval(connection.arbitrageIntervalId);
+				const isCurrent = () =>
+					version === subscriptionVersion && openAndConnected(connection);
+				if (!isCurrent()) return;
+				const { channel, ticker } = validatedRequest.jsonData;
+				if (['arbitrage', 'bestArbitrage', 'Markets'].includes(channel)) {
+					const intervalField =
+						channel === 'Markets' ? 'marketsIntervalId' : 'arbitrageIntervalId';
+					connection[intervalField] = setInterval(async () => {
+						if (!isCurrent()) {
+							if (version === subscriptionVersion) clearIntervals(connection);
+							return;
 						}
-					}, 1000);
-				}
-
-				if (validatedRequest.jsonData.channel === 'Markets') {
-					connection.marketsIntervalId = setInterval(async () => {
-						if (validatedRequest.jsonData.channel !== 'Markets')
-							clearInterval(connection.marketsIntervalId);
-						const response = {};
-						response.channel = 'markets';
-						response.markets = await webSocketServerService.getMarketsChannelInfo();
-						connection.sendUTF(JSON.stringify(response));
+						try {
+							const response =
+								channel === 'Markets'
+									? {
+											channel: 'markets',
+											markets:
+												await webSocketServerService.getMarketsChannelInfo(),
+									  }
+									: await webSocketServerService.getArbitrageChannelInfo(ticker);
+							if (isCurrent()) connection.sendUTF(JSON.stringify(response));
+						} catch (error) {
+							console.log(`error in setInterval ${channel}: ${error}`);
+							if (version === subscriptionVersion) clearIntervals(connection);
+						}
 					}, 1000);
 				}
 			} else {
@@ -152,9 +151,9 @@ exports.onRequest = (wsServer, request) => {
 		console.log(
 			`Peer ${connection.remoteAddress} connection.id: ${connection.id} disconnected. reasonCode: ${reasonCode} ${description}`
 		);
+		subscriptionVersion += 1;
 		delete connectionIdToSubscription[connection.id];
 		console.log(`connectionIdToSubscription: ${JSON.stringify(connectionIdToSubscription)}`);
-		clearInterval(connection.priceIntervalId);
-		clearInterval(connection.arbitrageIntervalId);
+		clearIntervals(connection);
 	});
 };
