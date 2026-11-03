@@ -23,6 +23,9 @@ const loadWire = async () => {
 		load: () => ({ handler: jest.requireActual('../../../webSocketServerHandler') }),
 		beforeClose: async () => {
 			try {
+				const providerClosed = Promise.all(
+					(server?.connections || []).map(socket => once(socket, 'close'))
+				);
 				await Promise.all(
 					consumers.map(async consumer => {
 						if (consumer.socket?.connected) {
@@ -36,6 +39,7 @@ const loadWire = async () => {
 					expect(consumer.waiting).toEqual([]);
 				});
 				server?.shutDown();
+				await providerClosed;
 				await app.client.close({ allMarkets: true });
 			} finally {
 				clock?.close();

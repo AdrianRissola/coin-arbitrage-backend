@@ -157,3 +157,28 @@ Production source, dependencies, lockfiles, frozen core and ownership guards
 are unchanged. The frontend commit remains `87f8421`; its independent GitHub
 workflow passed. The backend correction requires a successful new GitHub run
 before merging.
+
+## Native wire teardown correction
+
+The next backend GitHub run at `078632e` passed lint, then exposed a native
+wire-fixture race. The fixture awaited the consumer's close event but could
+restore console mocks before the provider's close handler ran. Jest correctly
+rejected the late production-handler logs even though the welcome assertion
+had passed.
+
+The shared wire fixture now observes provider close events before initiating
+consumer closure and awaits those events before restoring mocks and timers.
+The passing native probe checks that provider-close observation is installed
+before cleanup starts and that no server connection remains after cleanup.
+Its targeted red run failed on the missing close listener; the same target
+passed after the helper correction.
+
+The two fixture files remain frozen-core paths with exact original/reviewed
+hashes recorded alongside the existing Mongo fixture amendment. The I3 control
+checks rejection of both old and arbitrary content for all three amendments,
+then retains its unrelated/additional core-path rejection checks.
+
+The corrected wire profile passes all 10 Jest tests and 17 native controls,
+including the wrong-profit and null-request negative controls. Paired native
+controls remain 70/70. No console suppression, timer delay, deadline increase,
+forced exit, skipped test or network/ownership guard change was introduced.

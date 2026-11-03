@@ -39,7 +39,7 @@ test('I3 permits exactly the three integration deliverable documents, not other 
 		])
 	);
 });
-test('reviewed fixture amendment stays in the frozen core and rejects every unreviewed change', () => {
+test('reviewed fixture amendments stay in the frozen core and reject every unreviewed change', () => {
 	const root = path.resolve(__dirname, '../..');
 	const metadata = inspectRepository(
 		root,
@@ -51,18 +51,30 @@ test('reviewed fixture amendment stays in the frozen core and rejects every unre
 	const core = Object.fromEntries(
 		Object.entries(metadata.files).filter(([file]) => isFrozenCoreFile('backend', file))
 	);
-	const [amendment] = metadata.frozenCoreAmendments;
-	assert.equal(amendment.file, 'test/backend/harness/mongo-scope.test.cjs');
-	assert.equal(isFrozenCoreFile('backend', amendment.file), true);
+	assert.deepEqual(
+		metadata.frozenCoreAmendments.map(amendment => amendment.file),
+		[
+			'test/backend/harness/mongo-scope.test.cjs',
+			'test/backend/support/ws-wire.cjs',
+			'test/backend/harness/fixtures/ws-wire-passing.case.js',
+		]
+	);
 	assert.equal(metadata.frozenCoreUnchanged, false);
-	assert.throws(
-		() => verifyFrozenCore('backend', { ...core, [amendment.file]: amendment.previousSha256 }),
-		/amendment/
-	);
-	assert.throws(
-		() => verifyFrozenCore('backend', { ...core, [amendment.file]: '0'.repeat(64) }),
-		/amendment/
-	);
+	metadata.frozenCoreAmendments.forEach(amendment => {
+		assert.equal(isFrozenCoreFile('backend', amendment.file), true);
+		assert.throws(
+			() =>
+				verifyFrozenCore('backend', {
+					...core,
+					[amendment.file]: amendment.previousSha256,
+				}),
+			/amendment/
+		);
+		assert.throws(
+			() => verifyFrozenCore('backend', { ...core, [amendment.file]: '0'.repeat(64) }),
+			/amendment/
+		);
+	});
 	assert.throws(
 		() => verifyFrozenCore('backend', { ...core, 'test/backend/run.cjs': '0'.repeat(64) }),
 		/core overlay/

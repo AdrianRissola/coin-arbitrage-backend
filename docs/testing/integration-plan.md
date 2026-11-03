@@ -33,13 +33,15 @@ The index must be empty. Frozen B/F core and normalised package hashes verify
 the accepted code; only coordinated INT paths, the three INT documents,
 coordination guide and two npm aliases are exempt.
 
-The current backend pair also records one exact reviewed core amendment for
-`test/backend/harness/mongo-scope.test.cjs`: canonical temporary-root handling
-and its explicit symlink regression. This file remains in the frozen core.
+The current backend pair records three exact reviewed core amendments:
+`test/backend/harness/mongo-scope.test.cjs` canonicalises temporary roots;
+`test/backend/support/ws-wire.cjs` awaits provider-side WebSocket closure;
+`test/backend/harness/fixtures/ws-wire-passing.case.js` checks that the close
+wait is registered before cleanup. All three remain in the frozen core.
 `frozenCoreAmendments` records both original and reviewed SHA-256 values;
-`frozenCoreUnchanged: false` distinguishes the correction from the historical
+`frozenCoreUnchanged: false` distinguishes these corrections from the historical
 B6 baseline. Verification reconstructs that unchanged baseline using only the
-exact pinned amendment. Any other fixture bytes, additional core path or other
+exact pinned amendments. Any other fixture bytes, additional core path or other
 core modification still fails. The ownership guard is unchanged.
 
 No dependency installation, remote checkout, image download, production

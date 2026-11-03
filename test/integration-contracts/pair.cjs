@@ -21,14 +21,30 @@ const pins = Object.freeze({
 	},
 });
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
-const backendCoreAmendment = Object.freeze({
-	file: 'test/backend/harness/mongo-scope.test.cjs',
-	previousSha256: 'fd00d1a5ba49a15c78886c9da791d988a1e8ba36dc1c5e108adef55a09ef1c58',
-	sha256: '6dc0ca5909c8c1d2aaa313bc1a878f0d41cf9fbc20d6acc7241b742b429965d0',
-	reason: 'Canonical fixture root and portable symlink-path regression',
-});
+const backendCoreAmendments = Object.freeze(
+	[
+		{
+			file: 'test/backend/harness/mongo-scope.test.cjs',
+			previousSha256: 'fd00d1a5ba49a15c78886c9da791d988a1e8ba36dc1c5e108adef55a09ef1c58',
+			sha256: '6dc0ca5909c8c1d2aaa313bc1a878f0d41cf9fbc20d6acc7241b742b429965d0',
+			reason: 'Canonical fixture root and portable symlink-path regression',
+		},
+		{
+			file: 'test/backend/support/ws-wire.cjs',
+			previousSha256: '5814db5e9a7f72a5629e3caa1708c98c35b072da76dcc5dd6f36cdcbdbaf8c9b',
+			sha256: '377cb337fe5f0832e92a02e9ec99d7deb4ce0d404345c549b0a6854fedd93108',
+			reason: 'Await provider close handlers before restoring wire-fixture mocks',
+		},
+		{
+			file: 'test/backend/harness/fixtures/ws-wire-passing.case.js',
+			previousSha256: '2fb78a614f426ba9cf70ca0f19796fe12c0d647735cf82fbaf72635f6f1f6e0f',
+			sha256: 'cd29b2530b94a1fbb99b3809cf6136d7dc78f35300c92fea7651bc1707f656ea',
+			reason: 'Native wire regression requires provider-close observation before cleanup',
+		},
+	].map(amendment => Object.freeze(amendment))
+);
 const verifyFrozenCore = (role, core) => {
-	const amendments = role === 'backend' ? [backendCoreAmendment] : [];
+	const amendments = role === 'backend' ? backendCoreAmendments : [];
 	const baseline = { ...core };
 	amendments.forEach(amendment => {
 		if (baseline[amendment.file] !== amendment.sha256)
