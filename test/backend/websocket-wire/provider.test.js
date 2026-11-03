@@ -138,6 +138,28 @@ test('best per quote uses real services and save triggers through native seriali
 		['ETH-USD', 20, 20],
 	]);
 });
+test('best-arbitrage query failures reach the handler catch and cancel only its browser timer', async () => {
+	const app = await loadWire();
+	const consumer = await app.open();
+	await consumer.next();
+	const timer = await consumer.subscribe({ channel: 'bestArbitrage', ticker: 'ALL' });
+	await app.feed();
+	app.historySort.mockImplementation(() => ({
+		limit: () => Promise.reject(new Error('controlled best-arbitrage query failure')),
+	}));
+	await expect(app.clock.run(timer)).resolves.toBeUndefined();
+	expect(app.clock.intervals.has(timer)).toBe(false);
+	expect(jest.spyOn(console, 'log')).toHaveBeenCalledWith(
+		'error in setInterval bestArbitrage: Error: controlled best-arbitrage query failure'
+	);
+	expect(consumer.socket.connected).toBe(true);
+	expect(app.saved).toHaveLength(0);
+	expect(app.transport.clients.every(client => client.abort.mock.calls.length === 0)).toBe(true);
+	const replacement = await consumer.subscribe({ channel: 'Markets' });
+	const response = consumer.next();
+	await app.clock.run(replacement);
+	expect(await response).toMatchObject({ channel: 'markets' });
+});
 test('channel replacement and independent native clients preserve exact per-client intervals', async () => {
 	const app = await loadWire();
 	const first = await app.open();

@@ -105,8 +105,10 @@ const getBestArbitrage = async () => {
 			.filter(arbit => arbit != 0)
 			.sort((arbit, arbit2) => arbit.transactions[0].pair < arbit2.transactions[0].pair);
 
-		quoteCurrencyBestArbitrageList.forEach(arbit =>
-			arbitrageService.saveMaxProfitArbitrageByTicker(arbit)
+		await Promise.all(
+			quoteCurrencyBestArbitrageList.map(arbit =>
+				arbitrageService.saveMaxProfitArbitrageByTicker(arbit)
+			)
 		);
 	}
 	return quoteCurrencyBestArbitrageList;

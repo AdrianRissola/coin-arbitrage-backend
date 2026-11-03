@@ -5,6 +5,7 @@ jest.mock('../../../marketWebSocketClient', () => ({
 	close: jest.fn(),
 }));
 
+const { setImmediate } = require('node:timers');
 const client = require('../../../marketWebSocketClient');
 const manager = require('../../../marketsDBmanager');
 const arbitrage = require('../../../service/arbitrageService');
@@ -181,9 +182,7 @@ test.each([null, undefined])(
 	}
 );
 
-test('best channel groups one real top-profit result per quote and does not await its saves', async () => {
-	const pending = deferred();
-	arbitrage.saveMaxProfitArbitrageByTicker.mockReturnValue(pending.promise);
+test('best channel groups one real top-profit result per quote and persists both records', async () => {
 	const result = await server.getArbitrageChannelInfo('aLl');
 	expect(result.ticker).toBe('ALL');
 	expect(result.channel).toBe('bestArbitrage');
@@ -206,9 +205,62 @@ test('best channel groups one real top-profit result per quote and does not awai
 		],
 	});
 	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledTimes(2);
-	pending.resolve(null);
-	await pending.promise;
 });
+
+test.each([0, 1])('best channel awaits both saves when save %s finishes first', async first => {
+	const consumed = [deferred(), deferred()];
+	const saves = [deferred(), deferred()];
+	let settled = false;
+	arbitrage.saveMaxProfitArbitrageByTicker
+		.mockImplementationOnce(() => ({
+			then: (resolve, reject) => {
+				consumed[0].resolve();
+				return saves[0].promise.then(resolve, reject);
+			},
+		}))
+		.mockImplementationOnce(() => ({
+			then: (resolve, reject) => {
+				consumed[1].resolve();
+				return saves[1].promise.then(resolve, reject);
+			},
+		}));
+	const response = server.getArbitrageChannelInfo('ALL').then(result => {
+		settled = true;
+		return result;
+	});
+	try {
+		await expect(
+			Promise.race([
+				response.then(() => 'response'),
+				Promise.all(consumed.map(save => save.promise)).then(() => 'saves'),
+			])
+		).resolves.toBe('saves');
+		saves[first].resolve(null);
+		await new Promise(resolve => {
+			setImmediate(resolve);
+		});
+		expect(settled).toBe(false);
+	} finally {
+		saves.forEach(save => save.resolve(null));
+		await response;
+	}
+});
+
+test.each(['BTC-USDT', 'ETH-USD', 'both'])(
+	'best channel propagates persistence rejection for %s through its returned promise',
+	async ticker => {
+		const error = new Error('controlled best-arbitrage persistence failure');
+		arbitrage.saveMaxProfitArbitrageByTicker.mockImplementation(record => ({
+			then: (resolve, reject) =>
+				(ticker === 'both' || record.transactions[0].pair === ticker
+					? Promise.reject(error)
+					: Promise.resolve(null)
+				).then(resolve, reject),
+		}));
+		await expect(server.getArbitrageChannelInfo('ALL')).rejects.toBe(error);
+		expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledTimes(2);
+	}
+);
 
 test('ALL without an arbitrage retains the current null.forEach failure, not an invented empty shape', async () => {
 	client.getAllMarketTickerStream.mockReturnValue({});
