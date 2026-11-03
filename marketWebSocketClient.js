@@ -45,7 +45,7 @@ const sendWsMessage = (connection, sendFunction, payload) => {
 	connection[sendWsFunction](message);
 };
 
-const subscribe = async market => {
+const subscribe = market => {
 	let tickerToSubscribe = null;
 	const ticker = market.tickerRequest.toUpperCase();
 	const availableTicker = market.com.api.websocket.tickers.filter(t => t === ticker)[0];
@@ -69,14 +69,15 @@ const subscribe = async market => {
 			);
 			sendWsMessage(connection, market.com.api.websocket.sendFunction, tickerRequest);
 			connection.currentTickerSubscription = ticker;
-		} else {
-			console.log(
-				`there is no connection for: ${market.com.api.websocket.host} when trying to subscribe: ${tickerRequest}`
-			);
+			return true;
 		}
+		console.log(
+			`there is no connection for: ${market.com.api.websocket.host} when trying to subscribe: ${tickerRequest}`
+		);
 	} else {
 		console.log(`${market.com.api.websocket.host} is not supporting ${ticker}`);
 	}
+	return false;
 };
 
 const getSubscriptionId = (market, messageResponse) => {
@@ -103,8 +104,20 @@ const putSubscriptionId = async (connection, market, messageResponse) => {
 			if (!marketHostToSubscriptionId[connection.socket.servername][subscriptionId])
 				marketHostToSubscriptionId[connection.socket.servername][subscriptionId] =
 					connection.currentTickerSubscription;
+			const queue = marketToSyncSubscription[connection.socket.servername];
+			if (
+				queue &&
+				queue.pendingTicker &&
+				marketHostToSubscriptionId[connection.socket.servername][subscriptionId] ===
+					queue.pendingTicker
+			) {
+				queue.tickers.shift();
+				queue.pendingTicker = null;
+				return true;
+			}
 		}
 	}
+	return false;
 };
 
 const getPrice = (market, messageResponse, appTicker) =>
@@ -171,10 +184,17 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	}
 };
 
-const existSyncSubscriptions = connection =>
-	marketToSyncSubscription[connection.socket.servername] &&
-	marketToSyncSubscription[connection.socket.servername].tikcers &&
-	marketToSyncSubscription[connection.socket.servername].length > 0;
+const subscribeNext = market => {
+	const { host } = market.com.api.websocket;
+	const queue = marketToSyncSubscription[host];
+	if (!queue || !webSocketConnections[host]?.connected) return;
+	while (queue.tickers.length > 0 && !queue.pendingTicker) {
+		Object.assign(market, { tickerRequest: queue.tickers[0] });
+		if (subscribe(market))
+			queue.pendingTicker = webSocketConnections[host].currentTickerSubscription;
+		else queue.tickers.shift();
+	}
+};
 
 const clearReconnectTimeout = host => {
 	if (reconnectTimeouts[host]) {
@@ -246,16 +266,8 @@ const handleConnection = (connection, market) => {
 			logger.logDataByHost(connection.socket.servername, parsedMessage);
 
 			try {
-				await putSubscriptionId(connection, foundMmarket, parsedMessage);
-
-				if (existSyncSubscriptions(connection)) {
-					const marketToSubscribe = marketsDBmanager.getMarketByWebsocketHost(
-						connection.socket.servername
-					);
-					marketToSubscribe.tickerRequest =
-						marketToSyncSubscription[connection.socket.servername].tikcers.pop();
-					subscribe(marketToSubscribe);
-				}
+				if (await putSubscriptionId(connection, foundMmarket, parsedMessage))
+					subscribeNext(foundMmarket);
 
 				putMessage(connection, message, parsedMessage, market);
 
@@ -266,7 +278,13 @@ const handleConnection = (connection, market) => {
 		}
 	});
 
-	subscribe(market);
+	const queue = marketToSyncSubscription[connection.socket.servername];
+	if (queue) {
+		queue.pendingTicker = null;
+		marketHostToSubscriptionId[connection.socket.servername] = {};
+		if (!queue.tickers.length) queue.tickers.push(market.tickerRequest);
+		subscribeNext(market);
+	} else subscribe(market);
 };
 
 connectMarket = market => {
@@ -345,6 +363,8 @@ exports.getWebSocketConnections = () => dtoConverter.toConnectionsDto(webSocketC
 const stopMarketConnection = host => {
 	marketConnectionRequested[host] = false;
 	clearReconnectTimeout(host);
+	delete marketToSyncSubscription[host];
+	delete marketHostToSubscriptionId[host];
 	if (webSocketClients[host]) {
 		webSocketClients[host].abort();
 		delete webSocketClients[host];
@@ -372,30 +392,16 @@ const stopMarketConnection = host => {
 
 const addTickerSubscription = async tickers => {
 	marketsToConnect.forEach(market => {
-		tickers.forEach(ticker => {
-			Object.assign(market, { tickerRequest: ticker });
-			if (
-				market.com.api.websocket.pathToSubscriptionId &&
-				market.com.api.websocket.pathToSubscriptionId.length > 0
-			) {
-				if (!marketToSyncSubscription[market.com.api.websocket.host]) {
-					marketToSyncSubscription[market.com.api.websocket.host] = {};
-					marketToSyncSubscription[market.com.api.websocket.host].tickers = [];
-				}
-				marketToSyncSubscription[market.com.api.websocket.host].tickers.push(ticker);
-			} else {
+		const { host, pathToSubscriptionId } = market.com.api.websocket;
+		if (pathToSubscriptionId && pathToSubscriptionId.length > 0) {
+			if (!marketToSyncSubscription[host]) marketToSyncSubscription[host] = { tickers: [] };
+			marketToSyncSubscription[host].tickers.push(...tickers);
+			subscribeNext(market);
+		} else {
+			tickers.forEach(ticker => {
+				Object.assign(market, { tickerRequest: ticker });
 				subscribe(market);
-			}
-		});
-		if (
-			market.com.api.websocket.pathToSubscriptionId &&
-			market.com.api.websocket.pathToSubscriptionId.length > 0
-		) {
-			Object.assign(market, {
-				tickerRequest:
-					marketToSyncSubscription[market.com.api.websocket.host].tickers.pop(),
 			});
-			subscribe(market);
 		}
 	});
 

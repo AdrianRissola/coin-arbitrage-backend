@@ -294,7 +294,7 @@ Controlled coverage includes origin modes/configuration, welcome/validation,
 channel casing and missing fields, ALL expansion, asynchronous feed readiness,
 1000ms scheduling, replacement/duplicate subscriptions and independent clients.
 Exchange coverage includes host/ticker templates, UTF8/binary sending/parsing,
-subscription IDs, the undrained synchronous queue, ping cadence, errors/close,
+subscription IDs, confirmation-paced FIFO queues, ping cadence, errors/close,
 independent 30000ms retry and close-all cancellation. Tests use public listeners
 and observable timers, not private exports or production injection code.
 
@@ -362,14 +362,25 @@ Saves remain concurrent and non-transactional; another save may finish after one
 fails. Existing insert-error swallowing inside the lower-level save helper is
 unchanged, as are profit selection and the separate empty-ALL-result defect.
 
+BE-03 regressions require subscription-ID exchanges to send queued tickers in
+request order, with one outstanding confirmation per host. Startup retains all
+requests, overlapping calls append rather than replacing an unconfirmed ticker,
+and messages for an older ticker do not advance the pending request. Unsupported
+configured tickers are skipped. UTF8/binary confirmations retain independent
+price associations; hosts do not share queues or ID mappings. Reconnection
+retries the unconfirmed head with fresh connection-local ID mappings, while
+explicit close-all discards abandoned requests. This does not add confirmation
+timeouts or replay all previously confirmed subscriptions after reconnect.
+Heartbeat timing and the separate BE-07 empty-ALL-result defect are unchanged.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
 remain independent of that historical acceptance audit.
 
-Remaining characterised omissions include the `tikcers` queue mismatch,
-filtered-stream scalar versus array failure, stale per-ticker prices after
-errors and zero-delay pings when configured frequency is one.
+Remaining characterised omissions include filtered-stream scalar versus array
+failure, stale per-ticker prices after errors and zero-delay pings when
+configured frequency is one.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks
