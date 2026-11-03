@@ -30,7 +30,16 @@ const validateRequest = request => {
 		result.errorMessages.push(errorMessage);
 	}
 
-	if (!jsonData || !jsonData.channel || !jsonData.ticker) {
+	if (
+		!jsonData ||
+		typeof jsonData !== 'object' ||
+		Array.isArray(jsonData) ||
+		typeof jsonData.channel !== 'string' ||
+		!jsonData.channel.trim() ||
+		((jsonData.channel !== 'Markets' || jsonData.ticker !== undefined) &&
+			(typeof jsonData.ticker !== 'string' || !jsonData.ticker.trim()))
+	) {
+		result.isValid = false;
 		result.errorMessages.push('invalid request: channel and ticker fields are mandatory');
 	}
 

@@ -328,15 +328,28 @@ actual frame, not replaced with provider data or a passing timeout. Transport
 keepalive is disabled in the fixture; wall-clock cadence, native fragmentation,
 TLS, real exchange protocols and library heartbeat recovery are unvalidated.
 Three native controls require a real upgrade, an independently wrong 44-vs-45
-financial oracle and the exact unhandled null-request source failure, never a
-generic timeout/policy error.
+financial oracle and successful rejection of invalid requests without losing the
+connection. The invalid-request control retains the legacy probe identifier
+`ws-null-request-failure`, but now requires a natural zero exit and no failures.
 
-Characterised omissions include missing-field validation remaining valid,
-duplicate intervals, Markets disconnect leakage, a send attempt after an
-arbitrage connection closes, the `tikcers` queue mismatch, filtered-stream scalar
-versus array failure, stale per-ticker prices after errors and zero-delay pings
-when configured frequency is one. Browser disconnect does not close shared
-exchange clients and no unsubscribe is invented.
+BE-01 regressions reject non-object JSON, arrays, missing or blank channel/ticker
+fields and incorrect field types using the existing JSON error-array response.
+Capital `Markets` may omit its ticker; a provided ticker must be a non-empty
+string. Invalid requests open no exchange feeds, schedule no updates and leave
+an existing valid subscription unchanged. Native frames verify rejection and a
+subsequent valid ticker-less `Markets` subscription on the same connection.
+
+Historical paired INT audits remain pinned to the test-foundation source and
+core overlay. Their pins are not updated by this production fix, so they reject
+the changed source/test baseline; backend runtime regression profiles remain
+independent of that historical acceptance audit.
+
+Remaining characterised omissions include duplicate intervals, Markets
+disconnect leakage, a send attempt after an arbitrage connection closes, the
+`tikcers` queue mismatch, filtered-stream scalar versus array failure, stale
+per-ticker prices after errors and zero-delay pings when configured frequency is
+one. Browser disconnect does not close shared exchange clients and no
+unsubscribe is invented.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks
