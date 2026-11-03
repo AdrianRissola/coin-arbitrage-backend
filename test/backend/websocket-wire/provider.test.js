@@ -71,7 +71,7 @@ test('native binary messages are ignored without JSON parsing or feed startup', 
 	expect(app.transport.clients).toHaveLength(0);
 	expect([...app.clock.intervals.keys()].filter(timer => timer.delay === 1000)).toEqual([]);
 });
-test('Markets without ticker works on wire and its leaked interval is reported before owned cleanup', async () => {
+test('Markets without ticker works on wire and disconnect clears its interval before owned cleanup', async () => {
 	const app = await loadWire();
 	const consumer = await app.open();
 	await consumer.next();
@@ -87,25 +87,34 @@ test('Markets without ticker works on wire and its leaked interval is reported b
 	});
 	consumer.socket.close();
 	await closed;
-	expect(app.clock.intervals.has(timer)).toBe(true);
+	expect(app.clock.intervals.has(timer)).toBe(false);
 });
-test('same native browser subscription duplicates intervals and closes no exchange connection', async () => {
-	const app = await loadWire();
-	const consumer = await app.open();
-	await consumer.next();
-	const first = await consumer.subscribe({ channel: 'arbitrage', ticker: 'BTC-USDT' });
-	const second = await consumer.subscribe({ channel: 'arbitrage', ticker: 'BTC-USDT' });
-	expect(first).not.toBe(second);
-	expect(app.clock.intervals.size).toBe(2);
-	expect(app.transport.clients).toHaveLength(3);
-	const closed = new Promise(resolve => {
-		app.server.connections[0].once('close', resolve);
-	});
-	consumer.socket.close();
-	await closed;
-	expect([...app.clock.intervals.keys()]).toEqual([first]);
-	expect(app.transport.clients.every(client => client.abort.mock.calls.length === 0)).toBe(true);
-});
+test.each([
+	{ channel: 'arbitrage', ticker: 'BTC-USDT' },
+	{ channel: 'bestArbitrage', ticker: 'ALL' },
+	{ channel: 'Markets' },
+])(
+	'duplicate native %j subscriptions keep one timer and preserve shared exchanges',
+	async request => {
+		const app = await loadWire();
+		const consumer = await app.open();
+		await consumer.next();
+		const first = await consumer.subscribe(request);
+		const second = await consumer.subscribe(request);
+		expect(first).not.toBe(second);
+		expect([...app.clock.intervals.keys()]).toEqual([second]);
+		expect(app.transport.clients).toHaveLength(request.ticker ? 3 : 0);
+		const closed = new Promise(resolve => {
+			app.server.connections[0].once('close', resolve);
+		});
+		consumer.socket.close();
+		await closed;
+		expect(app.clock.intervals.size).toBe(0);
+		expect(app.transport.clients.every(client => client.abort.mock.calls.length === 0)).toBe(
+			true
+		);
+	}
+);
 test('best per quote uses real services and save triggers through native serialization', async () => {
 	const app = await loadWire();
 	const consumer = await app.open();
@@ -140,4 +149,17 @@ test('channel replacement and independent native clients preserve exact per-clie
 	const markets = await first.subscribe({ channel: 'Markets' });
 	expect(app.clock.intervals.has(one)).toBe(false);
 	expect([...app.clock.intervals.keys()]).toEqual([two, markets]);
+	const closed = new Promise(resolve => {
+		app.server.connections[0].once('close', resolve);
+	});
+	first.socket.close();
+	await closed;
+	expect([...app.clock.intervals.keys()]).toEqual([two]);
+	expect(second.socket.connected).toBe(true);
+	await app.feed();
+	app.planSave('Arbitrage');
+	const response = second.next();
+	await app.clock.run(two);
+	expect(await response).toMatchObject({ channel: 'arbitrage', ticker: 'ETH-USD' });
+	expect(app.transport.clients.every(client => client.abort.mock.calls.length === 0)).toBe(true);
 });
