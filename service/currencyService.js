@@ -37,7 +37,7 @@ const saveCurrency = async currencyRqst => {
 			console.log(`New pair currencies saved for ${market.name}:`, pairCurrencies);
 			return market;
 		});
-	marketRepository.saveAll(updatedMarkets);
+	await marketRepository.saveAll(updatedMarkets);
 
 	return currencyRqst;
 };
