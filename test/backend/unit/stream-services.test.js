@@ -262,12 +262,39 @@ test.each(['BTC-USDT', 'ETH-USD', 'both'])(
 	}
 );
 
-test('ALL without an arbitrage retains the current null.forEach failure, not an invented empty shape', async () => {
-	client.getAllMarketTickerStream.mockReturnValue({});
-	await expect(server.getArbitrageChannelInfo('ALL')).rejects.toThrow(
-		"Cannot read properties of null (reading 'forEach')"
-	);
+test.each([
+	['uninitialised feed', null],
+	['empty feed', {}],
+	['one market', { alpha: stream().alpha }],
+	['disconnected markets', { offline: stream().offline }],
+])('ALL with %s returns the empty best envelope without persistence', async (name, data) => {
+	client.getAllMarketTickerStream.mockReturnValue(data);
+	await expect(server.getArbitrageChannelInfo('ALL')).resolves.toEqual({
+		channel: 'bestArbitrage',
+		ticker: 'ALL',
+		bestArbitrages: { arbitragesData: [] },
+		message: 'No arbitrage available for: ALL',
+	});
+	expect(arbitrage.saveMaxProfitArbitrageByTicker).not.toHaveBeenCalled();
 });
+
+test.each(['tickers', 'quote currencies'])(
+	'ALL with no available %s returns an empty best envelope',
+	async missing => {
+		manager.setAvailableCurrencies(
+			seed.currencies.filter(currency =>
+				missing === 'tickers' ? !currency.base : !currency.quote
+			)
+		);
+		await expect(server.getArbitrageChannelInfo('all')).resolves.toEqual({
+			channel: 'bestArbitrage',
+			ticker: 'ALL',
+			bestArbitrages: { arbitragesData: [] },
+			message: 'No arbitrage available for: all',
+		});
+		expect(arbitrage.saveMaxProfitArbitrageByTicker).not.toHaveBeenCalled();
+	}
+);
 
 test('status channel uses actual connection flags and close descriptions without dropping undefined text', async () => {
 	client.getWebSocketConnections.mockReturnValue({

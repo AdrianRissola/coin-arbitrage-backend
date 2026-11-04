@@ -88,7 +88,7 @@ const getBestArbitrage = async () => {
 	arbitragesList = await Promise.all(arbitragesList);
 
 	arbitragesList = arbitragesList.filter(arbit => arbit).map(arbits => arbits[0]);
-	let quoteCurrencyBestArbitrageList = null;
+	let quoteCurrencyBestArbitrageList = [];
 	if (arbitragesList && arbitragesList.length > 0) {
 		const quoteCurrencies = marketsDBmanager.getAvailableCurrenciesByType('quote');
 		const tusd = arbitragesList.filter(a => a.transactions[0].pair.split('-')[1] === 'USDT');
@@ -148,6 +148,7 @@ exports.getArbitrageChannelInfo = async ticker => {
 		arbitrageChannelInfo.bestArbitrages = bestArbitrages;
 	}
 
-	if (!arbitrages) arbitrageChannelInfo.message = `No arbitrage available for: ${ticker}`;
+	if (!arbitrages || (Array.isArray(arbitrages) && arbitrages.length === 0))
+		arbitrageChannelInfo.message = `No arbitrage available for: ${ticker}`;
 	return arbitrageChannelInfo;
 };
