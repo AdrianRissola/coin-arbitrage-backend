@@ -71,6 +71,22 @@ test('native binary messages are ignored without JSON parsing or feed startup', 
 	expect(app.transport.clients).toHaveLength(0);
 	expect([...app.clock.intervals.keys()].filter(timer => timer.delay === 1000)).toEqual([]);
 });
+test('REST selective close stops only the named exchange while its browser stays connected', async () => {
+	const app = await loadWire();
+	const consumer = await app.open();
+	await consumer.next();
+	await consumer.subscribe({ channel: 'arbitrage', ticker: 'BTC-USDT' });
+	await app.feed();
+	const response = await app.api
+		.post('/coin-arbitrage/crypto/markets/tickers/websockets')
+		.send({ action: 'close', markets: ['alpha'] })
+		.expect(200);
+	expect(response.body['alpha.invalid'].connected).toBe(false);
+	expect(response.body['beta.invalid'].connected).toBe(true);
+	expect(response.body['gamma.invalid'].connected).toBe(true);
+	expect(consumer.socket.connected).toBe(true);
+});
+
 test('Markets without ticker works on wire and disconnect clears its interval before owned cleanup', async () => {
 	const app = await loadWire();
 	const consumer = await app.open();

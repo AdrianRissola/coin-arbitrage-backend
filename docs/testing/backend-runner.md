@@ -429,6 +429,13 @@ and disposable MongoDB tests require rejected inserts/validation with no row.
 Writes and refreshes remain non-transactional; completed writes are not rolled
 back when another operation fails. Currency cache-refresh behaviour is unchanged.
 
+Selective exchange close now resolves market names case-insensitively, closes
+only those connections and cancels their heartbeat/retry/pending-dial work.
+Late dial callbacks cannot reopen a stopped connection or replace a newer dial.
+Unknown/empty selections are no-ops; all-markets close remains available. A real
+REST/native-WebSocket case requires the selected exchange to stop while other
+exchanges and the browser connection remain active.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles

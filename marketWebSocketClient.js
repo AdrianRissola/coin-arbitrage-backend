@@ -308,6 +308,7 @@ connectMarket = market => {
 	webSocketClients[host] = marketClient;
 
 	const handleConnectFailed = error => {
+		if (!marketConnectionRequested[host] || webSocketClients[host] !== marketClient) return;
 		console.log(`connectFailed for: ${host} ${error.toString()}`);
 		Object.assign(market, { connected: false });
 		if (webSocketClients[host] === marketClient) delete webSocketClients[host];
@@ -321,7 +322,11 @@ connectMarket = market => {
 
 	marketClient.on('connectFailed', handleConnectFailed);
 	marketClient.on('connect', connection => {
-		if (webSocketClients[host] === marketClient) delete webSocketClients[host];
+		if (!marketConnectionRequested[host] || webSocketClients[host] !== marketClient) {
+			connection.close();
+			return;
+		}
+		delete webSocketClients[host];
 		webSocketConnections[host] = connection;
 		Object.assign(market, { connected: true });
 		handleConnection(connection, market);
@@ -429,12 +434,25 @@ exports.connectAndSend = async (markets, tickers) => {
 };
 
 exports.close = async websocketsActions => {
-	if (websocketsActions.allMarkets) {
-		Object.keys(webSocketConnections).forEach(host => {
-			stopMarketConnection(host);
-			if (webSocketConnections[host] && webSocketConnections[host].connected)
-				webSocketConnections[host].close();
-		});
+	let hosts = Object.keys(webSocketConnections);
+	if (!websocketsActions.allMarkets) {
+		const markets = await marketsDBmanager.getMarketsByNames(
+			websocketsActions.markets || [],
+			'websocket'
+		);
+		hosts = markets.map(market => market.com.api.websocket.host);
 	}
+	hosts.forEach(host => {
+		stopMarketConnection(host);
+		const connection = webSocketConnections[host];
+		if (connection?.connected) connection.close();
+		else if (connection?.state === 'connecting') {
+			webSocketConnections[host] = {
+				connected: false,
+				state: 'closed',
+				closeDescription: 'closed by request',
+			};
+		}
+	});
 	return dtoConverter.toConnectionsDto(webSocketConnections);
 };

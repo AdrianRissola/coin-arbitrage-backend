@@ -325,12 +325,67 @@ test('synchronous connect exceptions enter the same bounded retry path', async (
 	await clock.run(timer);
 	expect(context.clients).toHaveLength(2);
 });
-test('selective close actions currently do nothing while allMarkets closes and cancels pending clients', async () => {
+test('selective close stops the selected market and its heartbeat once', async () => {
 	const socket = await open({ pingFrequencyInSeconds: 3 });
-	await context.module.close({ markets: ['Alpha'] });
-	expect(socket.close).not.toHaveBeenCalled();
-	await context.module.close({ allMarkets: true });
+	await context.module.close({ markets: ['alpha', 'ALPHA'] });
 	expect(socket.close).toHaveBeenCalledTimes(1);
+	expect(clock.intervals.size).toBe(0);
+	expect(clock.timeouts.size).toBe(0);
+});
+
+test('selective close preserves other markets and their heartbeats', async () => {
+	const markets = ['Alpha', 'Beta'].map(name =>
+		exchangeMarket(name, { pingFrequencyInSeconds: 3 })
+	);
+	context.manager.setMarketsFromDB(markets);
+	await context.module.connectAndSend(markets, ['BTC-USDT']);
+	const sockets = markets.map((entry, index) => {
+		const socket = connection(entry.com.api.websocket.host);
+		context.clients[index].emit('connect', socket);
+		return socket;
+	});
+	await context.module.close({ markets: ['Alpha'] });
+	expect(sockets[0].close).toHaveBeenCalledTimes(1);
+	expect(sockets[1].close).not.toHaveBeenCalled();
+	expect(clock.intervals.size).toBe(1);
+	expect(clock.timeouts.size).toBe(0);
+});
+
+test('selective close aborts pending dials and ignores their late callbacks', async () => {
+	market = exchangeMarket();
+	context.manager.setMarketsFromDB([market]);
+	await context.module.connectAndSend([market], ['BTC-USDT']);
+	const client = context.clients[0];
+	const status = await context.module.close({ markets: ['Alpha'] });
+	expect(client.abort).toHaveBeenCalledTimes(1);
+	expect(status['alpha.invalid']).toMatchObject({ connected: false, state: 'closed' });
+	client.emit('connectFailed', new Error('late failure after abort'));
+	const late = connection('alpha.invalid');
+	client.emit('connect', late);
+	expect(late.close).toHaveBeenCalledTimes(1);
+	expect(late.sent).toEqual([]);
+	expect(clock.timeouts.size).toBe(0);
+	expect(clock.intervals.size).toBe(0);
+});
+
+test('selective close cancels a retry and permits an explicit fresh open', async () => {
+	const first = await open();
+	first.close();
+	expect(clock.timeouts.size).toBe(1);
+	await context.module.close({ markets: ['Alpha'] });
+	expect(clock.timeouts.size).toBe(0);
+	await context.module.connectAndSend([market], ['BTC-USDT']);
+	const next = connection('alpha.invalid');
+	context.clients[1].emit('connect', next);
+	expect(next.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+	expect(next.close).not.toHaveBeenCalled();
+});
+
+test('empty or unknown selections do not close active markets', async () => {
+	const socket = await open();
+	await context.module.close({ markets: [] });
+	await context.module.close({ markets: ['Missing'] });
+	expect(socket.close).not.toHaveBeenCalled();
 });
 test('stream lookup filters hosts/case and retains the last-subscription limitation', async () => {
 	const socket = await open();
