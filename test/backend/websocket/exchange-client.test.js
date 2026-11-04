@@ -126,13 +126,101 @@ test('subscription-ID acknowledgements retain independent ticker-price associati
 	});
 	expect(context.clients).toHaveLength(1);
 });
-test('ID synchronous queue remains undrained under the production tikcers/length mismatch', async () => {
-	const socket = await open({ pathToTicker: [], pathToSubscriptionId: ['id'] }, [
+test.each(['utf8', 'binary'])(
+	'ID queue drains in request order through %s confirmations without advancing on old prices',
+	async type => {
+		const socket = await open({ pathToTicker: [], pathToSubscriptionId: ['id'] }, [
+			'BTC-USDT',
+			'ETH-USD',
+			'BTC-USDT',
+		]);
+		expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+		await deliver(socket, { id: 7 }, type);
+		expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}', '{"symbol":"ETH-USD"}']);
+		await deliver(socket, { id: 7, price: 81 }, type);
+		expect(socket.sent).toHaveLength(2);
+		await deliver(socket, { id: 9, price: 100 }, type);
+		expect(socket.sent).toEqual([
+			'{"symbol":"BTC-USDT"}',
+			'{"symbol":"ETH-USD"}',
+			'{"symbol":"BTC-USDT"}',
+		]);
+		await deliver(socket, { id: 7, price: 82 }, type);
+		await deliver(socket, { id: 9, price: 101 }, type);
+		expect(socket.sent).toHaveLength(3);
+		expect(
+			context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices
+		).toEqual({
+			'BTC-USDT': 82,
+			'ETH-USD': 101,
+		});
+	}
+);
+test('additional ID requests wait for the outstanding subscription confirmation', async () => {
+	const socket = await open({ pathToTicker: [], pathToSubscriptionId: ['id'] });
+	await context.module.connectAndSend([market], ['ETH-USD']);
+	expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+	await deliver(socket, { heartbeat: true });
+	expect(socket.sent).toHaveLength(1);
+	await deliver(socket, { id: 7, price: 80 });
+	expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}', '{"symbol":"ETH-USD"}']);
+	await deliver(socket, { id: 9, price: 100 });
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices).toEqual({
+		'BTC-USDT': 80,
+		'ETH-USD': 100,
+	});
+});
+test.each([[['LTC-USDT', 'BTC-USDT', 'ETH-USD']], [['BTC-USDT', 'LTC-USDT', 'ETH-USD']]])(
+	'unsupported entries in ID queue %j do not block supported tickers',
+	async tickers => {
+		const socket = await open({ pathToTicker: [], pathToSubscriptionId: ['id'] }, tickers);
+		expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+		await deliver(socket, { id: 7 });
+		expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}', '{"symbol":"ETH-USD"}']);
+	}
+);
+test('ID queues and reused numeric IDs are independent across exchange hosts', async () => {
+	const markets = ['Alpha', 'Beta'].map(name =>
+		exchangeMarket(name, { pathToTicker: [], pathToSubscriptionId: ['id'] })
+	);
+	context.manager.setMarketsFromDB(markets);
+	await context.module.connectAndSend(markets, ['BTC-USDT', 'ETH-USD']);
+	const alpha = connection('alpha.invalid');
+	const beta = connection('beta.invalid');
+	context.clients[0].emit('connect', alpha);
+	context.clients[1].emit('connect', beta);
+	await deliver(alpha, { id: 7 });
+	expect(alpha.sent).toEqual(['{"symbol":"BTC-USDT"}', '{"symbol":"ETH-USD"}']);
+	expect(beta.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+	await deliver(beta, { id: 7 });
+	expect(beta.sent).toEqual(['{"symbol":"BTC-USDT"}', '{"symbol":"ETH-USD"}']);
+});
+test('reconnect retries the unconfirmed ID request and resets old connection ID mappings', async () => {
+	const first = await open({ pathToTicker: [], pathToSubscriptionId: ['id'] }, [
 		'BTC-USDT',
 		'ETH-USD',
+		'BTC-USDT',
 	]);
-	await deliver(socket, { id: 1, price: 80 });
-	expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+	await deliver(first, { id: 7 });
+	first.close();
+	await clock.run([...clock.timeouts.keys()][0]);
+	const second = connection('alpha.invalid');
+	context.clients[1].emit('connect', second);
+	expect(second.sent).toEqual(['{"symbol":"ETH-USD"}']);
+	await deliver(second, { id: 7, price: 100 });
+	expect(second.sent).toEqual(['{"symbol":"ETH-USD"}', '{"symbol":"BTC-USDT"}']);
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices).toEqual({
+		'ETH-USD': 100,
+	});
+});
+test('explicit close-all discards abandoned ID requests before a fresh connection', async () => {
+	await open({ pathToTicker: [], pathToSubscriptionId: ['id'] }, ['BTC-USDT', 'ETH-USD']);
+	await context.module.close({ allMarkets: true });
+	await context.module.connectAndSend([market], ['ETH-USD']);
+	const socket = connection('alpha.invalid');
+	context.clients[1].emit('connect', socket);
+	await deliver(socket, { id: 7 });
+	expect(socket.sent).toEqual(['{"symbol":"ETH-USD"}']);
 });
 test('an unknown subscription ID is swallowed without creating a price record', async () => {
 	const socket = await open({ pathToTicker: [], pathToSubscriptionId: ['id'] });
