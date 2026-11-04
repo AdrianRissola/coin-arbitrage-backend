@@ -138,6 +138,30 @@ test('best per quote uses real services and save triggers through native seriali
 		['ETH-USD', 20, 20],
 	]);
 });
+test('empty best frames preserve the native subscription and later data resumes', async () => {
+	const app = await loadWire();
+	const consumer = await app.open();
+	await consumer.next();
+	const timer = await consumer.subscribe({ channel: 'bestArbitrage', ticker: 'ALL' });
+	const empty = consumer.next();
+	await app.clock.run(timer);
+	expect(await empty).toEqual({
+		channel: 'bestArbitrage',
+		ticker: 'ALL',
+		bestArbitrages: { arbitragesData: [] },
+		message: 'No arbitrage available for: ALL',
+	});
+	expect(app.saved).toEqual([]);
+	expect(app.clock.intervals.has(timer)).toBe(true);
+	await app.feed();
+	app.planSave('Arbitrage');
+	app.planSave('Arbitrage');
+	const resumed = consumer.next();
+	await app.clock.run(timer);
+	expect((await resumed).bestArbitrages.arbitragesData).toHaveLength(2);
+	expect(app.clock.intervals.has(timer)).toBe(true);
+	expect(app.saved).toHaveLength(2);
+});
 test('best-arbitrage query failures reach the handler catch and cancel only its browser timer', async () => {
 	const app = await loadWire();
 	const consumer = await app.open();

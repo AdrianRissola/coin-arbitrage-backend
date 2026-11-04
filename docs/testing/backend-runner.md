@@ -411,6 +411,15 @@ schedule no heartbeat. Controlled tests assert the scheduled delay, ping payload
 and cleanup, not wall-clock cadence or live-exchange keepalive compatibility.
 No general configuration type/range validation or protocol redesign is added.
 
+BE-07 returns the normal best-arbitrage envelope when no opportunities exist:
+`{ channel: 'bestArbitrage', ticker: 'ALL', bestArbitrages: { arbitragesData: [] } }`,
+plus the existing no-arbitrage message. Empty feeds, a single priced market,
+disconnected feeds and missing currencies/tickers do not trigger persistence.
+A native wire test requires the empty frame, a live update timer and later
+nonempty data on the same subscription. The single-ticker and REST empty-data
+contracts are unchanged. The paired FE-01 view renders its no-arbitrages state
+instead of reducing an empty list or dereferencing a missing selection.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
