@@ -192,19 +192,35 @@ test.each([
 	expect(response.body.error).toMatchObject({ code: status, description });
 });
 
-test('POST currency response-error ReferenceError still serializes as an empty 500 object', async () => {
-	const context = await loadHttpApp({
-		exchange: [
-			{
-				error: Object.assign(new Error('B3 currency HTTP error'), {
-					response: { status: 503 },
-				}),
+test.each([
+	[
+		{ response: { status: 503 } },
+		400,
+		'B3 currency HTTP error when: GET https://api.coingecko.com/api/v3/search?query=NEW',
+	],
+	[{ request: {} }, 400, 'B3 currency HTTP error'],
+	[{}, 500, 'B3 currency HTTP error'],
+])(
+	'POST currency lookup failure %j returns its existing application error mapping',
+	async (properties, status, description) => {
+		const context = await loadHttpApp({
+			exchange: [{ error: Object.assign(new Error('B3 currency HTTP error'), properties) }],
+		});
+		const response = await context.api
+			.post(`${base}/currency`)
+			.send({ symbol: 'NEW' })
+			.expect(status);
+		expect(response.type).toBe('application/json');
+		expect(response.body).toEqual({
+			error: {
+				code: status,
+				message: status === 400 ? 'BAD REQUEST' : 'INTERNAL SERVER ERROR',
+				description,
 			},
-		],
-	});
-	const response = await context.api.post(`${base}/currency`).send({ symbol: 'NEW' }).expect(500);
-	expect(response.body).toEqual({});
-});
+		});
+		expect(context.saved).toEqual([]);
+	}
+);
 
 test('POST arbitrage preserves actual model IDs/dates/transactions in JSON without a database', async () => {
 	const context = await loadHttpApp();

@@ -73,7 +73,7 @@ only application/repository imports are re-isolated per case. Each actual cache
 is observed for initial readiness and explicitly closed. No controller or service
 under test is replaced. Manager fixtures use its existing public setters.
 
-The API profile has 88 HTTP cases, 11 direct-controller probes and 19 native
+The API profile has 90 HTTP cases, 11 direct-controller probes and 19 native
 safety/recovery controls. Native controls retain a deliberately wrong HTTP
 status oracle. The legacy `api-market-map-failure`, `api-history-failure` and
 `api-current-error` identifiers now require bounded, completed JSON errors and
@@ -123,8 +123,8 @@ markets and empty 200 responses with JSON content type after swallowed saves or
 unknown socket actions. Missing map/symbol fields still reject in raw controllers,
 but the router forwards those rejections to the error middleware as JSON 500
 responses. Duplicate-currency and missing-market failures stop after their first
-error. A controlled currency HTTP error retains the native undefined-`url`
-failure and empty 500 object; BE-08 is separate from the REST forwarding fix.
+error. CoinGecko response/request failures now use the intended BAD REQUEST
+mapping rather than an undefined-`url` failure; setup errors retain JSON 500.
 
 `--report-dir` must name a new directory with an existing, test-owned parent.
 Existing destinations are rejected instead of overwritten. Without this option,
@@ -187,10 +187,10 @@ read-only data, never an app-startup dependency or a fixture to rewrite.
 
 Currency tests preserve exact CoinGecko symbol matching, rank boundaries and
 current caller mutation/global-result behaviour. They clean the created global
-after each test. The undefined `url` response/request error paths remain native
-ReferenceErrors. Stream service tests use the real manager, DTO and financial
-calculation code; only the exchange WebSocket client and persistence calls are
-controlled. Lower-level socket lifecycle/wire behaviour is not exercised here.
+after each test. Response/request errors use the request-local URL and preserve
+the intended application error mappings. Stream tests use the real manager, DTO
+and financial calculation code; only the exchange WebSocket client and
+persistence calls are controlled. Lower-level socket lifecycle/wire behaviour is not exercised here.
 
 Cache tests use actual NodeCache instances, captured at construction and closed
 after every test. Import readiness uses cache events and controlled model
@@ -394,6 +394,15 @@ Application error envelopes and successful responses are unchanged. This is not
 comprehensive REST input validation: missing fields can still produce JSON 500,
 and lower-level swallowed save errors are not changed. Native probes require
 error responses and subsequent successful requests, not unhandled failures.
+
+BE-08 defines the CoinGecko search URL once per lookup and reuses it for the
+request and error handling. Response failures return the existing BAD REQUEST
+object with the original message and actual lookup URL; request/no-response
+failures return BAD REQUEST with the original message. Setup errors retain
+INTERNAL SERVER ERROR. Unit and HTTP cases assert these mappings and no saves
+after lookup failure. An unrelated global URL cannot contaminate error context.
+This does not change upstream-status mapping, URL escaping, symbol/rank rules,
+caller mutation or the pre-existing global-result behaviour.
 
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they

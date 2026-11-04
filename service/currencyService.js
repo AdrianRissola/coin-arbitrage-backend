@@ -60,8 +60,9 @@ const validateCurrency = currency => {
 
 const getCurrency = async currency => {
 	console.log(`Requesting new currency:`, currency);
+	const url = `https://api.coingecko.com/api/v3/search?query=${currency.symbol}`;
 	return (result = await axios
-		.get(`https://api.coingecko.com/api/v3/search?query=${currency.symbol}`)
+		.get(url)
 		.then(response => {
 			const coin = response.data.coins.filter(coin => coin.symbol === currency.symbol)[0];
 			console.log(`Requested new currency is:`, coin);

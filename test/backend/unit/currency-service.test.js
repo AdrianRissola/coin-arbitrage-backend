@@ -196,15 +196,31 @@ test('a rejected currency save propagates after request mutation and before any 
 	expect(marketRepository.saveAll).not.toHaveBeenCalled();
 });
 
-test.each([{ response: { status: 503 } }, { request: {} }])(
-	'CoinGecko response/request errors keep the current undefined-url ReferenceError: %j',
-	async properties => {
+test.each([
+	[
+		{ response: { status: 503 } },
+		'BTC',
+		'controlled lookup failure when: GET https://api.coingecko.com/api/v3/search?query=BTC',
+	],
+	[{ request: {} }, 'ETH', 'controlled lookup failure'],
+])(
+	'CoinGecko failure %j preserves its BAD REQUEST mapping for %s',
+	async (properties, symbol, description) => {
+		if (properties.response) global.url = 'unrelated ambient value';
+		const request = { symbol, name: 'unchanged' };
 		transport = controlAxios(axios, [
 			{ error: Object.assign(new Error('controlled lookup failure'), properties) },
 		]);
-		await expect(service.saveCurrency({ symbol: 'BTC' })).rejects.toThrow('url is not defined');
+		await expect(service.saveCurrency(request)).rejects.toEqual({
+			code: 400,
+			message: 'BAD REQUEST',
+			description,
+		});
 		expect(errorLog).toHaveBeenCalledWith('controlled lookup failure');
+		expect(request).toEqual({ symbol, name: 'unchanged' });
 		expect(currencyRepository.save).not.toHaveBeenCalled();
+		expect(marketRepository.saveAll).not.toHaveBeenCalled();
+		expect(global.url).toBe(properties.response ? 'unrelated ambient value' : undefined);
 	}
 );
 
