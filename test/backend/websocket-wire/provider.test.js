@@ -1,4 +1,5 @@
 const { loadWire } = require('../support/ws-wire.cjs');
+const { deliver } = require('../support/ws-runtime.cjs');
 const welcome = require('../../fixtures/contracts/v1/ws-welcome.json');
 const arbitrage = require('../../fixtures/contracts/v1/ws-arbitrage.json');
 
@@ -178,6 +179,31 @@ test('empty best frames preserve the native subscription and later data resumes'
 	expect(app.clock.intervals.has(timer)).toBe(true);
 	expect(app.saved).toHaveLength(2);
 });
+test('errors drop stale opportunities until fresh quotes recover on the same subscription', async () => {
+	const app = await loadWire();
+	const consumer = await app.open();
+	await consumer.next();
+	const timer = await consumer.subscribe({ channel: 'bestArbitrage', ticker: 'ALL' });
+	const sockets = [];
+	app.transport.clients.forEach(client => client.once('connect', socket => sockets.push(socket)));
+	await app.feed();
+	sockets.forEach(socket => socket.emit('error', new Error('controlled quote failure')));
+	const empty = consumer.next();
+	await app.clock.run(timer);
+	expect((await empty).bestArbitrages.arbitragesData).toEqual([]);
+	expect(app.saved).toHaveLength(0);
+	expect(app.clock.intervals.has(timer)).toBe(true);
+	await deliver(sockets[0], { symbol: 'BTC-USDT', price: 80 });
+	await deliver(sockets[1], { symbol: 'BTC-USDT', price: 100 });
+	app.planSave('Arbitrage');
+	const recovered = consumer.next();
+	await app.clock.run(timer);
+	const rows = (await recovered).bestArbitrages.arbitragesData;
+	expect(rows).toHaveLength(1);
+	expect(rows[0].arbitrage.transactions[0].pair).toBe('BTC-USDT');
+	expect(app.saved).toHaveLength(1);
+});
+
 test.each(['query', 'insert'])(
 	'best-arbitrage %s failures reach the handler catch and cancel only its browser timer',
 	async stage => {

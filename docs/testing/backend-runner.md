@@ -444,8 +444,19 @@ remain independent of that historical acceptance audit.
 Filtered-stream lookup now accepts scalar or array tickers when resolving
 market names and retains a separate snapshot per ticker. Looking up an earlier
 pair returns its own price, raw frame and timestamp, not the latest pair's
-metadata. Aggregate stream/DTO shapes remain unchanged. Stale per-ticker prices
-after errors remain for the separate freshness fix.
+metadata. Aggregate stream/DTO shapes remain unchanged.
+
+Exchange errors, closes and explicit stops now invalidate all cached ticker
+prices and lookup snapshots for that host. Subsequent valid messages can restore
+only their own ticker; other cached opportunities cannot reappear automatically.
+Retired connection callbacks cannot repopulate or clear a replacement's cache
+or install a retry. Message processing no longer yields between subscription
+acknowledgement and cache update, preventing a pre-error frame from resuming
+after invalidation. Native wire tests
+require no arbitrage/persistence after feed errors and recovery using only
+newly received quotes on the same browser subscription. Transport errors do not
+force-close an otherwise open connection. No age-based TTL is invented: silent
+feeds without an observed error still need an agreed quote-expiry policy.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks
