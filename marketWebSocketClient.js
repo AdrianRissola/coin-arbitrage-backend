@@ -34,7 +34,7 @@ const sendPing = connection => {
 			setInterval(() => {
 				if (connection.connected) connection.sendUTF('ping');
 				else clearInterval(connectionToPingInterval.get(connection));
-			}, (pingFrequencyInSeconds - 1) * 1000)
+			}, Math.max(1, pingFrequencyInSeconds - 1) * 1000)
 		);
 	}
 };

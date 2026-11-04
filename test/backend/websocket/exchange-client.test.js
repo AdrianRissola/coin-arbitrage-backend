@@ -253,9 +253,26 @@ test('ping cadence is frequency minus one second and disconnected ticks cancel i
 	await clock.run(timer);
 	expect(clock.intervals.size).toBe(0);
 });
-test('one-second configured ping frequency currently schedules a zero-delay interval', async () => {
-	await open({ pingFrequencyInSeconds: 1 });
-	expect([...clock.intervals.keys()].map(timer => timer.delay)).toEqual([0]);
+test.each([
+	[0.5, 1000],
+	[1, 1000],
+	[1.5, 1000],
+	[2, 1000],
+	[3, 2000],
+	[30, 29000],
+])('%s-second pings schedule a bounded %sms interval', async (frequency, delay) => {
+	const socket = await open({ pingFrequencyInSeconds: frequency });
+	const [timer] = clock.intervals.keys();
+	expect(timer.delay).toBe(delay);
+	expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+	await clock.run(timer);
+	expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}', 'ping']);
+	await context.module.close({ allMarkets: true });
+	expect(clock.intervals.size).toBe(0);
+});
+test.each([undefined, null, 0])('ping frequency %p leaves heartbeats disabled', async frequency => {
+	await open({ pingFrequencyInSeconds: frequency });
+	expect(clock.intervals.size).toBe(0);
 });
 test('error clears only latest price, preserving per-ticker prices and connected flag as supplied', async () => {
 	const socket = await open();
