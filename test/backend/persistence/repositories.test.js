@@ -54,25 +54,19 @@ test('Currency validation failure is logged/swallowed without a MongoDB insert',
 	expect(log.mock.calls[0][0]).toMatchObject({ name: 'ValidationError' });
 	expect(await context.Currency.countDocuments({ symbol: 'BAD' })).toBe(0);
 });
-test('Market saveAll returns empty before real writes then mutates its result while an earlier getter snapshot stays empty', async () => {
-	const acknowledged = context.waitInsertAcks(2);
-	const saved = context.marketRepository.saveAll([
+test('Market saveAll awaits real writes and refreshes manager without dropping existing markets', async () => {
+	const saved = await context.marketRepository.saveAll([
 		new context.Market({ name: 'LaterOne' }),
 		new context.Market({ name: 'LaterTwo' }),
 	]);
-	expect(saved).toEqual([]);
-	const snapshot = context.manager.getAllMarkets();
-	expect(snapshot).toEqual([]);
-	await acknowledged;
 	expect(await context.Market.countDocuments({ name: { $in: ['LaterOne', 'LaterTwo'] } })).toBe(
 		2
 	);
 	expect(saved.map(record => record.name).sort()).toEqual(['LaterOne', 'LaterTwo']);
-	expect(snapshot).toEqual([]);
 	expect(
 		context.manager
 			.getAllMarkets()
 			.map(record => record.name)
 			.sort()
-	).toEqual(['LaterOne', 'LaterTwo']);
+	).toEqual(['Alpha', 'Beta', 'LaterOne', 'LaterTwo']);
 });

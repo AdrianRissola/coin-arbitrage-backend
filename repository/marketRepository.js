@@ -23,6 +23,7 @@ const updateCache = async () => {
 		markets.map(m => m.toObject())
 	);
 	console.log(`Markets Saved in marketCache:`, isSaved);
+	return markets;
 };
 
 const init = (async () => {
@@ -41,15 +42,13 @@ const save = market =>
 		})
 		.catch(e => {
 			console.log('Error when saving market:', market.name, e);
+			throw e;
 		});
 
-const saveAll = markets => {
-	const savedMarkets = [];
-	markets.forEach(async market => {
-		savedMarkets.push(await save(market));
-	});
-	updateCache();
-	marketsDBmanager.setMarketsFromDB(savedMarkets);
+const saveAll = async markets => {
+	const savedMarkets = await Promise.all(markets.map(save));
+	const refreshedMarkets = await updateCache();
+	marketsDBmanager.setMarketsFromDB(refreshedMarkets);
 	return savedMarkets;
 };
 

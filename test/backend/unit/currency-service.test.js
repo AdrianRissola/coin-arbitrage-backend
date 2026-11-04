@@ -150,17 +150,38 @@ test('currency persistence is awaited before pair and market ticker updates', as
 	]);
 });
 
-test('the service does not await the returned market saveAll promise', async () => {
+test('the service awaits market saveAll before reporting success', async () => {
+	const consumed = deferred();
 	const pending = deferred();
-	marketRepository.saveAll.mockReturnValue(pending.promise);
+	marketRepository.saveAll.mockReturnValue({
+		then: (resolve, reject) => {
+			consumed.resolve();
+			return pending.promise.then(resolve, reject);
+		},
+	});
 	transport = controlAxios(axios, [
 		{ data: { coins: [{ symbol: 'BTC', name: 'Bitcoin', market_cap_rank: 1 }] } },
 	]);
-	await expect(service.saveCurrency({ symbol: 'BTC' })).resolves.toMatchObject({
-		name: 'Bitcoin',
+	const response = service.saveCurrency({ symbol: 'BTC' });
+	try {
+		await expect(
+			Promise.race([response.then(() => 'response'), consumed.promise.then(() => 'save')])
+		).resolves.toBe('save');
+	} finally {
+		pending.resolve([]);
+		await response;
+	}
+});
+
+test('market saveAll rejection propagates through saveCurrency', async () => {
+	const error = new Error('controlled bulk market failure');
+	marketRepository.saveAll.mockReturnValue({
+		then: (resolve, reject) => Promise.reject(error).then(resolve, reject),
 	});
-	pending.resolve([]);
-	await pending.promise;
+	transport = controlAxios(axios, [
+		{ data: { coins: [{ symbol: 'BTC', name: 'Bitcoin', market_cap_rank: 1 }] } },
+	]);
+	await expect(service.saveCurrency({ symbol: 'BTC' })).rejects.toBe(error);
 });
 
 test('a rejected currency save propagates after request mutation and before any market save', async () => {

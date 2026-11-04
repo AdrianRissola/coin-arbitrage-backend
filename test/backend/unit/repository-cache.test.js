@@ -16,7 +16,8 @@ jest.mock('node-cache', () => {
 	};
 });
 
-const { deferred, controlledSave } = require('../support/b2-fixtures.cjs');
+const { setImmediate } = require('node:timers');
+const { deferred } = require('../support/b2-fixtures.cjs');
 
 const Currency = mockCurrency;
 const Market = mockMarket;
@@ -124,51 +125,65 @@ test('Market import queries twice, seeds actual manager and caches plain cloned 
 	expect(mockMarket.find).toHaveBeenCalledTimes(3);
 });
 
-test('saveAll returns an empty aliased array immediately; cache refresh and saves complete independently', async () => {
-	mockMarket.find.mockResolvedValue([new Market({ name: 'Old' })]);
+test('saveAll awaits every write and refresh, preserves input order and retains existing markets', async () => {
+	const old = new Market({ name: 'Old' });
+	mockMarket.find.mockResolvedValue([old]);
 	const { repository, cache } = load('marketRepository');
 	await nextCacheSet(cache);
 	const first = new Market({ name: 'First' });
 	const second = new Market({ name: 'Second' });
-	const savedFirst = controlledSave();
-	const savedSecond = controlledSave();
+	const savedFirst = deferred();
+	const savedSecond = deferred();
 	const refreshed = deferred();
 	jest.spyOn(first, 'save').mockReturnValue(savedFirst.promise);
 	jest.spyOn(second, 'save').mockReturnValue(savedSecond.promise);
 	mockMarket.find.mockReturnValue(refreshed.promise);
-	const cacheReady = nextCacheSet(cache);
-	const result = repository.saveAll([first, second]);
-	expect(result).toEqual([]);
-	const managerResult = mockManager.getAllMarkets();
-	expect(managerResult).toEqual([]);
-	refreshed.resolve([first, second]);
-	await cacheReady;
-	expect(cache.get('markets').map(value => value.name)).toEqual(['First', 'Second']);
-	expect(result).toHaveLength(0);
+	let settled = false;
+	const result = Promise.resolve(repository.saveAll([first, second])).then(records => {
+		settled = true;
+		return records;
+	});
 	savedSecond.resolve(second);
+	await new Promise(resolve => {
+		setImmediate(resolve);
+	});
+	expect(settled).toBe(false);
+	expect(mockMarket.find).toHaveBeenCalledTimes(2);
+	expect(mockManager.getAllMarkets()).toEqual([old]);
 	savedFirst.resolve(first);
-	await Promise.all([savedFirst.completion(), savedSecond.completion()]);
-	expect(result.slice()).toEqual([second, first]);
-	expect(mockManager.getAllMarkets()).toEqual([second, first]);
-	expect(managerResult).toEqual([]);
+	await new Promise(resolve => {
+		setImmediate(resolve);
+	});
+	expect(settled).toBe(false);
+	refreshed.resolve([old, first, second]);
+	await expect(result).resolves.toEqual([first, second]);
+	expect(cache.get('markets').map(value => value.name)).toEqual(['Old', 'First', 'Second']);
+	expect(mockManager.getAllMarkets()).toEqual([old, first, second]);
 });
 
-test('saveAll swallows individual rejections and eventually appends undefined beside successful saves', async () => {
-	mockMarket.find.mockResolvedValue([]);
+test('saveAll propagates write errors without publishing a partial manager or cache', async () => {
+	const old = new Market({ name: 'Old' });
+	mockMarket.find.mockResolvedValue([old]);
 	const { repository, cache } = load('marketRepository');
 	await nextCacheSet(cache);
 	const failed = new Market({ name: 'Failed' });
-	const good = new Market({ name: 'Good' });
 	const error = new Error('controlled individual market failure');
-	const failedSave = controlledSave();
-	const goodSave = controlledSave();
-	jest.spyOn(failed, 'save').mockReturnValue(failedSave.promise);
-	jest.spyOn(good, 'save').mockReturnValue(goodSave.promise);
-	const cacheReady = nextCacheSet(cache);
-	const result = repository.saveAll([failed, good]);
-	failedSave.reject(error);
-	goodSave.resolve(good);
-	await Promise.all([cacheReady, failedSave.completion(), goodSave.completion()]);
-	expect(result.slice()).toEqual(expect.arrayContaining([undefined, good]));
+	jest.spyOn(failed, 'save').mockRejectedValue(error);
+	await expect(Promise.resolve(repository.saveAll([failed]))).rejects.toBe(error);
+	expect(mockMarket.find).toHaveBeenCalledTimes(2);
+	expect(mockManager.getAllMarkets()).toEqual([old]);
+	expect(cache.get('markets').map(value => value.name)).toEqual(['Old']);
 	expect(log).toHaveBeenCalledWith('Error when saving market:', 'Failed', error);
+});
+
+test('saveAll propagates refresh failure without replacing manager state', async () => {
+	const old = new Market({ name: 'Old' });
+	mockMarket.find.mockResolvedValue([old]);
+	const { repository, cache } = load('marketRepository');
+	await nextCacheSet(cache);
+	const error = new Error('controlled refresh failure');
+	mockMarket.find.mockRejectedValue(error);
+	await expect(Promise.resolve(repository.saveAll([]))).rejects.toBe(error);
+	expect(mockManager.getAllMarkets()).toEqual([old]);
+	expect(cache.get('markets').map(value => value.name)).toEqual(['Old']);
 });

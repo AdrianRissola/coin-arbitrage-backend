@@ -373,6 +373,16 @@ explicit close-all discards abandoned requests. This does not add confirmation
 timeouts or replay all previously confirmed subscriptions after reconnect.
 Heartbeat timing and the separate BE-07 empty-ALL-result defect are unchanged.
 
+BE-04 requires saveAll to await concurrent market writes, return documents in
+input order and await a database-backed cache refresh before publishing manager
+state. Refreshing all database markets preserves those outside the saved subset.
+Write and refresh failures reject the returned promise; the currency service
+awaits that promise rather than reporting early success. These operations are
+not transactional: other writes may complete after a rejection, and previous
+writes or caller-side document mutations are not rolled back. No change is made
+to repository import-time initialisation, lower-level currency/arbitrage save
+error swallowing, controller error responses or the BE-08 CoinGecko defect.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
@@ -418,7 +428,7 @@ Tests execute actual Mongoose documents, BSON writes/reads, repository cache
 initialisation, query casting/date ordering and maximum-profit decisions.
 Model find/save methods are not mocked or replaced. The NodeCache subclass only
 observes ownership/readiness and still runs the native cache. Driver command
-events observe acknowledgements for the existing non-awaited Market saveAll.
+events observe database commands for the awaited Market saveAll.
 Single-command server failpoints deliberately exercise real find/insert failures;
 they are labelled fault injection, disabled after each case and enabled only on
 the new disposable server. Validation failures are distinct from server failures.
