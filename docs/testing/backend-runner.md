@@ -404,14 +404,20 @@ after lookup failure. An unrelated global URL cannot contaminate error context.
 This does not change upstream-status mapping, URL escaping, symbol/rank rules,
 caller mutation or the pre-existing global-result behaviour.
 
+BE-09 clamps the existing frequency-minus-one-second heartbeat calculation to
+a minimum of one second. Frequencies of 0.5, 1 and 1.5 seconds schedule 1000ms;
+larger settings retain the existing margin. Undefined, null and zero still
+schedule no heartbeat. Controlled tests assert the scheduled delay, ping payload
+and cleanup, not wall-clock cadence or live-exchange keepalive compatibility.
+No general configuration type/range validation or protocol redesign is added.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
 remain independent of that historical acceptance audit.
 
 Remaining characterised omissions include filtered-stream scalar versus array
-failure, stale per-ticker prices after errors and zero-delay pings when
-configured frequency is one.
+failure and stale per-ticker prices after errors.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks
