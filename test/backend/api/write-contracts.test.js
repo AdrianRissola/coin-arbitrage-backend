@@ -159,7 +159,7 @@ test.each(['AA', 'AAAAAA', 'aaa', '123', ''])(
 	}
 );
 
-test('POST duplicate currency retains its first error response despite calling next again', async () => {
+test('POST duplicate currency preserves its existing error response', async () => {
 	const context = await loadHttpApp();
 	const response = await context.api.post(`${base}/currency`).send({ symbol: 'BTC' }).expect(400);
 	expect(response.body).toEqual({

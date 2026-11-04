@@ -1,8 +1,9 @@
 const { loadHttpApp } = require('../support/http-app.cjs');
 
 const response = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
+const base = '/coin-arbitrage/crypto';
 
-test('direct real market controller forwards NOT_FOUND then still dereferences a missing market', async () => {
+test('missing market forwards NOT_FOUND once without continuing into a dereference', async () => {
 	const context = await loadHttpApp({ listen: false });
 	const next = jest.fn();
 	expect(() =>
@@ -11,7 +12,8 @@ test('direct real market controller forwards NOT_FOUND then still dereferences a
 			response(),
 			next
 		)
-	).toThrow(TypeError);
+	).not.toThrow();
+	expect(next).toHaveBeenCalledTimes(1);
 	expect(next).toHaveBeenCalledWith({
 		code: 404,
 		message: 'NOT FOUND',
@@ -19,58 +21,55 @@ test('direct real market controller forwards NOT_FOUND then still dereferences a
 	});
 });
 
-test('direct GET markets catches real DTO failure and makes no response or next call after its catch settles', async () => {
-	const context = await loadHttpApp({ listen: false });
-	context.manager.setMarketsFromDB([null]);
-	const output = response();
-	const next = jest.fn();
-	const caught = context.waitForError(args => args[0] instanceof TypeError);
-	expect(context.controllers.market.getAllMarkets({}, output, next)).toBeUndefined();
-	await caught;
-	expect(output.json).not.toHaveBeenCalled();
-	expect(next).not.toHaveBeenCalled();
-});
+test.each(['getAllMarkets', 'getAllMarketTickers'])(
+	'%s forwards its real service failure without sending success',
+	async action => {
+		const context = await loadHttpApp({ listen: false });
+		context.manager.setMarketsFromDB(
+			action === 'getAllMarkets'
+				? [null]
+				: [{ name: 'Broken', availableTickersToMarketTickers: {} }]
+		);
+		const output = response();
+		const next = jest.fn();
+		const caught = context.waitForError(args => args[0] instanceof TypeError);
+		context.controllers.market[action]({ params: { ticker: 'MISSING' } }, output, next);
+		await caught;
+		expect(output.json).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(next).toHaveBeenCalledWith(expect.any(TypeError));
+	}
+);
 
-test('direct GET all tickers catches real missing-map failure without completing the HTTP response', async () => {
-	const context = await loadHttpApp({ listen: false });
-	context.manager.setMarketsFromDB([{ name: 'Broken', availableTickersToMarketTickers: {} }]);
-	const output = response();
-	const caught = context.waitForError(args => args[0] instanceof TypeError);
-	context.controllers.market.getAllMarketTickers({ params: { ticker: 'MISSING' } }, output);
-	await caught;
-	expect(output.json).not.toHaveBeenCalled();
-});
-
-test('direct POST arbitrage swallows the actual controlled model rejection without responding', async () => {
-	const context = await loadHttpApp({ listen: false });
-	const failure = new Error('B3 rejected arbitrage save');
-	context.planSave('Arbitrage', { error: failure });
-	const output = response();
-	const caught = context.waitForError(args => args[0] === failure);
-	context.controllers.arbitrage.saveArbitrage({ body: {} }, output);
-	await caught;
-	expect(output.json).not.toHaveBeenCalled();
-});
-
-test('direct POST arbitrage real validation failure is logged without inventing an error envelope', async () => {
-	const context = await loadHttpApp({ listen: false });
-	context.planSave('Arbitrage');
-	const output = response();
-	const caught = context.waitForError(args => args[0]?.name === 'ValidationError');
-	context.controllers.arbitrage.saveArbitrage(
-		{ body: { profitPercentage: 'not-a-number' } },
-		output
-	);
-	await caught;
-	expect(output.json).not.toHaveBeenCalled();
-});
+test.each(['save', 'validation'])(
+	'POST arbitrage forwards real %s failure without sending success',
+	async kind => {
+		const context = await loadHttpApp({ listen: false });
+		const failure = new Error('controlled arbitrage save failure');
+		context.planSave('Arbitrage', kind === 'save' ? { error: failure } : {});
+		const output = response();
+		const next = jest.fn();
+		const caught = context.waitForError(args =>
+			kind === 'save' ? args[0] === failure : args[0]?.name === 'ValidationError'
+		);
+		context.controllers.arbitrage.saveArbitrage(
+			{ body: kind === 'save' ? {} : { profitPercentage: 'not-a-number' } },
+			output,
+			next
+		);
+		await caught;
+		expect(output.json).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(next).toHaveBeenCalledWith(kind === 'save' ? failure : expect.any(Error));
+	}
+);
 
 test.each([
 	['market map', 'market', 'saveMarket', {}, /Cannot convert undefined or null to object/],
 	['currency symbol', 'market', 'saveCurrency', {}, /length/],
 	['WebSocket tickers', 'websocket', 'connectWebsocketClient', { action: 'open' }, /some/],
 ])(
-	'direct async missing %s retains its rejected promise, not an Express fallback',
+	'raw controller missing %s returns its rejection for the route adapter',
 	async (name, controller, action, body, message) => {
 		const context = await loadHttpApp({ listen: false });
 		const output = response();
@@ -83,9 +82,9 @@ test.each([
 	}
 );
 
-test('direct history query rejection propagates instead of calling next or sending a response', async () => {
+test('raw history query returns its rejection for the route adapter', async () => {
 	const context = await loadHttpApp({ listen: false });
-	const failure = new Error('B3 history query rejected');
+	const failure = new Error('controlled history query failure');
 	context.historySort.mockRejectedValue(failure);
 	const output = response();
 	const next = jest.fn();
@@ -98,4 +97,87 @@ test('direct history query rejection propagates instead of calling next or sendi
 	).rejects.toBe(failure);
 	expect(output.json).not.toHaveBeenCalled();
 	expect(next).not.toHaveBeenCalled();
+});
+
+test('current arbitrages stop after forwarding a market-price failure', async () => {
+	const context = await loadHttpApp({ listen: false });
+	context.manager.setMarketsFromDB([null]);
+	const output = response();
+	const next = jest.fn();
+	await context.controllers.arbitrage.getArbitrages(
+		{ query: { ticker: 'BTC-USDT' } },
+		output,
+		next
+	);
+	expect(next).toHaveBeenCalledTimes(1);
+	expect(output.json).not.toHaveBeenCalled();
+});
+
+test.each([
+	['get', '/markets', undefined, context => context.manager.setMarketsFromDB([null])],
+	['get', '/markets/MISSING', undefined, context => context.manager.setMarketsFromDB([null])],
+	[
+		'get',
+		'/markets/tickers/BTC-USDT/prices',
+		undefined,
+		context => context.manager.setMarketsFromDB([null]),
+	],
+	[
+		'get',
+		'/current-arbitrages?ticker=BTC-USDT',
+		undefined,
+		context => context.manager.setMarketsFromDB([null]),
+	],
+	['post', '/markets', {}, () => {}],
+	['post', '/currency', {}, () => {}],
+	['post', '/markets/tickers/websockets', { action: 'open' }, () => {}],
+	[
+		'post',
+		'/arbitrages',
+		{},
+		context => context.planSave('Arbitrage', { error: new Error('controlled save failure') }),
+	],
+	[
+		'post',
+		'/arbitrages',
+		{ profitPercentage: 'not-a-number' },
+		context => context.planSave('Arbitrage'),
+	],
+])(
+	'%s %s completes a real JSON error response instead of hanging',
+	async (method, path, body, prepare) => {
+		const context = await loadHttpApp();
+		prepare(context);
+		const request = context.api[method](`${base}${path}`).timeout({
+			response: 1000,
+			deadline: 2000,
+		});
+		if (body !== undefined) request.send(body);
+		const result = await request.expect(500);
+		expect(result.type).toBe('application/json');
+	}
+);
+
+test.each([undefined, 'ECONNRESET', 11000, 400])(
+	'history query error code %p is forwarded through the real HTTP error middleware',
+	async code => {
+		const context = await loadHttpApp();
+		context.historySort.mockRejectedValue(
+			Object.assign(new Error('controlled query failure'), { code })
+		);
+		const result = await context.api
+			.get(`${base}/historical-arbitrages?tickers[]=BTC-USDT`)
+			.timeout({ response: 1000, deadline: 2000 })
+			.expect(code === 400 ? 400 : 500);
+		expect(result.type).toBe('application/json');
+	}
+);
+
+test('missing POST arbitrage body stops before model persistence', async () => {
+	const context = await loadHttpApp({ listen: false });
+	const output = response();
+	context.controllers.arbitrage.saveArbitrage({}, output, jest.fn());
+	expect(output.status).toHaveBeenCalledWith(400);
+	expect(output.json).toHaveBeenCalledTimes(1);
+	expect(context.saved).toEqual([]);
 });

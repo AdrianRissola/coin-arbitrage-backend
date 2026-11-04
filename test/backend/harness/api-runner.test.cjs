@@ -28,18 +28,17 @@ test('a wrong HTTP status oracle cannot appear green', () => {
 	assert.equal(result.report.stages[0].failedTests, 1);
 	assert.match(result.output, /expected 201.*got 200/);
 });
-[
-	['api-market-map-failure', /Cannot convert undefined or null to object/, 'marketController'],
-	['api-history-failure', /B3 HTTP history query rejected/, 'arbitrageController'],
-	['api-current-error', /Cannot set headers after they are sent/, 'arbitrageController'],
-].forEach(([name, error, controller]) => {
-	test(`${name} requires the existing source-specific async HTTP failure, not a generic timeout`, () => {
+['api-market-map-failure', 'api-history-failure', 'api-current-error'].forEach(name => {
+	test(`${name} requires completed error responses and recovery without failing the runner`, () => {
 		const result = probe(name);
-		assert.equal(result.status, 1, result.output);
-		assert.equal(result.report.stages[0].childCode, 1, result.output);
+		assert.equal(result.status, 0, result.output);
+		assert.equal(result.report.success, true, result.output);
+		assert.equal(result.report.stages[0].childCode, 0, result.output);
 		assert.equal(result.report.stages[0].timedOut, false, result.output);
-		assert.match(result.output, error);
-		assert.ok(result.output.includes(`controller/${controller}.js`), result.output);
+		assert.equal(result.report.stages[0].totalTests, 1, result.output);
+		assert.equal(result.report.stages[0].passedTests, 1, result.output);
+		assert.equal(result.report.stages[0].failedTests, 0, result.output);
+		assert.equal(result.report.stages[0].skippedTests, 0, result.output);
 		assert.ok(!result.output.includes('BE_TEST_GUARD_BLOCKED'), result.output);
 	});
 });

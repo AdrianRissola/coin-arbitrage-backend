@@ -1,6 +1,13 @@
 const { loadHttpApp } = require('../../support/http-app.cjs');
 
-test('actual HTTP market missing-map failure remains an unhandled async rejection', async () => {
+test('actual HTTP market missing-map failure returns JSON and the server remains usable', async () => {
 	const context = await loadHttpApp();
-	await context.api.post('/coin-arbitrage/crypto/markets').send({}).timeout({ deadline: 750 });
+	const result = await context.api
+		.post('/coin-arbitrage/crypto/markets')
+		.send({})
+		.timeout({ deadline: 750 })
+		.expect(500);
+	expect(result.type).toBe('application/json');
+	expect(result.body).toEqual({});
+	await context.api.get('/coin-arbitrage/crypto/markets').timeout({ deadline: 750 }).expect(200);
 });
