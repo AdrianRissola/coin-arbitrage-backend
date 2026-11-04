@@ -46,11 +46,11 @@ test('Currency save reaches MongoDB while its existing cache/manager remain stal
 		'BTC',
 	]);
 });
-test('Currency validation failure is logged/swallowed without a MongoDB insert', async () => {
+test('Currency validation failure is logged and rejects without a MongoDB insert', async () => {
 	const log = jest.spyOn(console, 'error').mockImplementation(() => {});
-	expect(
-		await context.currencyRepository.save({ symbol: 'BAD', quote: 'not boolean' })
-	).toBeUndefined();
+	await expect(
+		context.currencyRepository.save({ symbol: 'BAD', quote: 'not boolean' })
+	).rejects.toMatchObject({ name: 'ValidationError' });
 	expect(log.mock.calls[0][0]).toMatchObject({ name: 'ValidationError' });
 	expect(await context.Currency.countDocuments({ symbol: 'BAD' })).toBe(0);
 });

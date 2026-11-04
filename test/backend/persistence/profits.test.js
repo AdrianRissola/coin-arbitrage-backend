@@ -82,14 +82,12 @@ test('controlled server find fault rejects the actual service query without inve
 		code: 12345,
 	});
 });
-test('controlled server insert fault reaches the actual swallowed-save catch without persisting a row', async () => {
+test('controlled server insert fault rejects without persisting a row', async () => {
 	const log = jest.spyOn(console, 'error').mockImplementation(() => {});
 	await context.failNext(['insert'], 121);
-	expect(
-		await service.saveMaxProfitArbitrageByTicker(
-			opportunity(10, 'BTC-USDT', 'FaultBuy', 'FaultSell')
-		)
-	).toBeUndefined();
+	await expect(
+		service.saveMaxProfitArbitrageByTicker(opportunity(10, 'BTC-USDT', 'FaultBuy', 'FaultSell'))
+	).rejects.toMatchObject({ name: 'MongoServerError', code: 121 });
 	expect(log.mock.calls[0][0]).toMatchObject({ name: 'MongoServerError', code: 121 });
 	expect(await context.Arbitrage.countDocuments({ 'transactions.0.market': 'FaultBuy' })).toBe(0);
 });

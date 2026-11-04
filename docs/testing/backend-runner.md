@@ -119,8 +119,8 @@ handshake or paired frontend compatibility is invented.
 
 Current responses deliberately include HTML 400 for malformed JSON before CORS,
 HTML 404 for unknown routes/methods, 200 JSON `null` for insufficient arbitrage
-markets and empty 200 responses with JSON content type after swallowed saves or
-unknown socket actions. Missing map/symbol fields still reject in raw controllers,
+markets and empty 200 responses with JSON content type for unknown socket
+actions. Failed currency/market writes now reach the JSON error boundary. Missing map/symbol fields still reject in raw controllers,
 but the router forwards those rejections to the error middleware as JSON 500
 responses. Duplicate-currency and missing-market failures stop after their first
 error. CoinGecko response/request failures now use the intended BAD REQUEST
@@ -419,6 +419,15 @@ A native wire test requires the empty frame, a live update timer and later
 nonempty data on the same subscription. The single-ticker and REST empty-data
 contracts are unchanged. The paired FE-01 view renders its no-arbitrages state
 instead of reducing an empty list or dereferencing a missing selection.
+
+The additional persistence fix makes arbitrage, currency and individual-market
+save helpers log and rethrow the original error. New-market success awaits the
+manager refresh too; a failed refresh is returned as a failure, not discarded
+background work. HTTP tests require JSON 500 for failed writes, native WebSocket
+tests require insert failures to reach the existing subscription error boundary,
+and disposable MongoDB tests require rejected inserts/validation with no row.
+Writes and refreshes remain non-transactional; completed writes are not rolled
+back when another operation fails. Currency cache-refresh behaviour is unchanged.
 
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they

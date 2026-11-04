@@ -110,13 +110,23 @@ test('POST market bad extraction path is rejected through the real price extract
 	expect(typeof response.body.error.description).toBe('string');
 });
 
-test('POST market controlled save failure stays swallowed and sends an empty 200 response', async () => {
+test('POST market controlled save failure completes a JSON 500 response', async () => {
 	const context = await loadHttpApp({ exchange: price() });
 	context.planSave('Market', { error: new Error('B3 market save rejected') });
-	const response = await context.api.post(`${base}/markets`).send(market('New')).expect(200);
-	expect(response.text).toBe('');
+	const response = await context.api.post(`${base}/markets`).send(market('New')).expect(500);
+	expect(response.body).toEqual({});
 	expect(response.type).toBe('application/json');
 	expect(context.errors.some(args => args[0]?.message === 'B3 market save rejected')).toBe(true);
+});
+
+test('POST currency write rejection completes a JSON 500 without market writes', async () => {
+	const context = await loadHttpApp({
+		exchange: [{ data: { coins: [{ symbol: 'NEW', name: 'New Coin', market_cap_rank: 1 }] } }],
+	});
+	context.planSave('Currency', { error: new Error('controlled currency write failure') });
+	const response = await context.api.post(`${base}/currency`).send({ symbol: 'NEW' }).expect(500);
+	expect(response.body).toEqual({});
+	expect(context.saved.map(record => record.model)).toEqual(['Currency']);
 });
 
 test('POST currency augments the actual request while real repository and market orchestration run', async () => {

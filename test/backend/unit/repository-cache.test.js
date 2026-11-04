@@ -101,13 +101,13 @@ test('Currency save returns its real saved document without refreshing the impor
 	expect(mockCurrency.find).toHaveBeenCalledTimes(1);
 });
 
-test('Currency save failures remain logged and resolve undefined', async () => {
+test('Currency save failures are logged and propagated unchanged', async () => {
 	mockCurrency.find.mockResolvedValue([]);
 	const { repository, cache } = load('currencyRepository');
 	await nextCacheSet(cache);
 	const error = new Error('controlled currency save failure');
 	mockCurrency.prototype.save.mockRejectedValue(error);
-	await expect(repository.save({ symbol: 'ETH' })).resolves.toBeUndefined();
+	await expect(repository.save({ symbol: 'ETH' })).rejects.toBe(error);
 	expect(errorLog).toHaveBeenCalledWith(error);
 });
 
