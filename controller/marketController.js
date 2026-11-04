@@ -7,7 +7,7 @@ exports.getAllAvailableTickers = (request, response) => {
 	response.json(marketsDBmanager.getAllAvailableTickers());
 };
 
-exports.getAllMarkets = (request, response) => {
+exports.getAllMarkets = (request, response, next) =>
 	marketService
 		.getAllMarkets()
 		.then(markets => {
@@ -16,10 +16,10 @@ exports.getAllMarkets = (request, response) => {
 		})
 		.catch(err => {
 			console.error(err);
+			next(err);
 		});
-};
 
-exports.getAllMarketTickers = (request, response) => {
+exports.getAllMarketTickers = (request, response, next) =>
 	marketService
 		.getAllMarketTickers(request.params.ticker)
 		.then(marketTickers => {
@@ -28,12 +28,12 @@ exports.getAllMarketTickers = (request, response) => {
 		})
 		.catch(err => {
 			console.error(err);
+			next(err);
 		});
-};
 
 exports.getAllPricesByTicker = (request, response) => {
 	console.log('request.params.ticker: ', request.params.ticker);
-	marketService.getAllPricesByTicker(request.params.ticker).then(result => {
+	return marketService.getAllPricesByTicker(request.params.ticker).then(result => {
 		console.log('getAllPricesByTicker: ', result);
 		response.json(result);
 	});
@@ -43,6 +43,7 @@ const isValidMarketAndTicker = (market, ticker, next) => {
 	const marketFound = marketsDBmanager.getMarketByName(market);
 	if (!marketFound) {
 		next(errorHelper.errors.NOT_FOUND(`market ${market} not found`));
+		return false;
 	}
 
 	const marketTicker = marketFound.availableTickersToMarketTickers[ticker.toUpperCase()];
@@ -107,14 +108,11 @@ exports.saveMarket = async (request, response, next) => {
 	return result;
 };
 
-const isValidCurrencyRequest = (currency, next) => {
-	let alreadyExists = false;
+const isValidCurrencyRequest = currency => {
 	if (marketsDBmanager.getAvailableCurrencies().some(ac => ac.symbol === currency.symbol)) {
-		alreadyExists = true;
-		next(errorHelper.errors.BAD_REQUEST(`Currency symbol ${currency.symbol} already exists`));
+		throw errorHelper.errors.BAD_REQUEST(`Currency symbol ${currency.symbol} already exists`);
 	}
 	return (
-		!alreadyExists &&
 		currency.symbol.length >= 3 &&
 		currency.symbol.length <= 5 &&
 		currency.symbol.toUpperCase() !== currency.symbol.toLowerCase() &&
@@ -125,7 +123,7 @@ const isValidCurrencyRequest = (currency, next) => {
 exports.saveCurrency = async (request, response, next) => {
 	let result = null;
 	const newCurrency = request.body;
-	if (!isValidCurrencyRequest(newCurrency, next))
+	if (!isValidCurrencyRequest(newCurrency))
 		next(errorHelper.errors.BAD_REQUEST('Currency is invalid'));
 	else {
 		try {

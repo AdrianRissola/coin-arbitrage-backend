@@ -73,14 +73,14 @@ only application/repository imports are re-isolated per case. Each actual cache
 is observed for initial readiness and explicitly closed. No controller or service
 under test is replaced. Manager fixtures use its existing public setters.
 
-The API profile has 75 HTTP cases, nine direct-controller probes and 19 native
-safety/failure controls. Native controls include a deliberately wrong HTTP
-status oracle and bounded actual-request probes for missing market mappings,
-history-query rejection and continuing after `next`. The latter require the
-specific application error and source frame, not merely a request deadline.
-Request deadlines prevent these known failures from hanging. Direct probes
-observe a settled logged error without a response; they do not assert a
-time-dependent passing timeout or install global rejection suppression.
+The API profile has 88 HTTP cases, 11 direct-controller probes and 19 native
+safety/recovery controls. Native controls retain a deliberately wrong HTTP
+status oracle. The legacy `api-market-map-failure`, `api-history-failure` and
+`api-current-error` identifiers now require bounded, completed JSON errors and
+successful subsequent requests, with natural zero exits and no skipped tests.
+Direct probes verify error forwarding without a success response; raw async
+controller rejections are returned to the route adapter. No passing timeout or
+global rejection suppression substitutes for an actual HTTP response.
 
 History query tests verify Express array/scalar/object/absent serialization and
 the real service's `$in`/sort arguments. Their controlled query result is not
@@ -120,10 +120,11 @@ handshake or paired frontend compatibility is invented.
 Current responses deliberately include HTML 400 for malformed JSON before CORS,
 HTML 404 for unknown routes/methods, 200 JSON `null` for insufficient arbitrage
 markets and empty 200 responses with JSON content type after swallowed saves or
-unknown socket actions. Missing map/symbol fields can reject outside Express 4;
-duplicate currency validation calls `next` twice; missing-market validation can
-call `next` and then throw. A controlled currency HTTP error retains the native
-undefined-`url` failure and empty 500 object. These behaviours are not fixes.
+unknown socket actions. Missing map/symbol fields still reject in raw controllers,
+but the router forwards those rejections to the error middleware as JSON 500
+responses. Duplicate-currency and missing-market failures stop after their first
+error. A controlled currency HTTP error retains the native undefined-`url`
+failure and empty 500 object; BE-08 is separate from the REST forwarding fix.
 
 `--report-dir` must name a new directory with an existing, test-owned parent.
 Existing destinations are rejected instead of overwritten. Without this option,
@@ -252,7 +253,7 @@ replacement names are also retained in the B3 evidence `legacy-api-mapping.json`
 | GET markets, 200 | `GET markets projects exact public DTOs` |
 | GET available tickers, 200 | `GET available tickers preserves literal` |
 | GET Binance BTC-USDT, 200 | `GET single market ticker uses case-insensitive lookup`; B2 retains real Binance URL/native-price checks |
-| GET invalid market, 404 | `GET single ticker missing/BTC-USDT`; direct forward-then-throw probe |
+| GET invalid market, 404 | `GET single ticker missing/BTC-USDT`; direct single-forward/no-dereference probe |
 | GET invalid ticker, 404 | `GET single ticker Alpha/missing` |
 | GET all current arbitrages, 200 | `GET current arbitrages BTC-USDT matches independent` |
 | GET current two markets, 200 | `GET current requested subset retains actual market inclusion` |
@@ -382,6 +383,17 @@ not transactional: other writes may complete after a rejection, and previous
 writes or caller-side document mutations are not rolled back. No change is made
 to repository import-time initialisation, lower-level currency/arbitrage save
 error swallowing, controller error responses or the BE-08 CoinGecko defect.
+
+BE-06 forwards synchronous throws and returned promise rejections from API
+handlers through the Express 4 route adapter. Existing controller catches forward
+rather than swallowing errors, and validation/current-arbitrage failures stop
+before another response is sent. The terminal error middleware honours integer
+HTTP error codes from 400 to 599; other codes fall back to JSON 500. Already-sent
+responses delegate to Express error handling instead of attempting another body.
+Application error envelopes and successful responses are unchanged. This is not
+comprehensive REST input validation: missing fields can still produce JSON 500,
+and lower-level swallowed save errors are not changed. Native probes require
+error responses and subsequent successful requests, not unhandled failures.
 
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they

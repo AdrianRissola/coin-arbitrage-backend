@@ -4,37 +4,32 @@ const Arbitrage = require('../model/Arbitrage');
 const errorHelper = require('../errorHelper');
 
 const validateArbitrageRequest = (request, next) => {
-	let hasMoreThanOneMarket = true;
-	if (request.query.markets) {
-		const markets = request.query.markets.split(',');
-		if (!!markets && markets.length < 2) {
-			hasMoreThanOneMarket = false;
-			next(errorHelper.errors.BAD_REQUEST('more than one market is mandatory'));
-		}
+	if (request.query.markets && request.query.markets.split(',').length < 2) {
+		next(errorHelper.errors.BAD_REQUEST('more than one market is mandatory'));
+		return false;
 	}
-	let hasTicker = true;
 	if (!request.query.ticker) {
 		next(errorHelper.errors.BAD_REQUEST('ticker is mandatory'));
-		hasTicker = false;
+		return false;
 	}
-	return (!request.query.markets || hasMoreThanOneMarket) && hasTicker;
+	return true;
 };
 
 exports.getArbitrages = async (request, response, next) => {
 	if (validateArbitrageRequest(request, next)) {
 		const markets = request.query.markets ? request.query.markets.split(',') : null;
-		const marketPrices = await marketService
-			.getMarketPrices(markets, request.query.ticker)
-			.catch(err => {
-				console.error(err);
-				next(err);
-			});
-		const arbitrages = arbitrageService.calculateArbitrages(
-			marketPrices,
-			Number(request.query.minProfitPercentage),
-			Number(request.query.top)
-		);
-		response.json(arbitrages);
+		try {
+			const marketPrices = await marketService.getMarketPrices(markets, request.query.ticker);
+			const arbitrages = arbitrageService.calculateArbitrages(
+				marketPrices,
+				Number(request.query.minProfitPercentage),
+				Number(request.query.top)
+			);
+			response.json(arbitrages);
+		} catch (err) {
+			console.error(err);
+			next(err);
+		}
 	}
 };
 
@@ -44,14 +39,14 @@ exports.getAllHistoricalArbitrages = async (request, response) => {
 	response.json(result);
 };
 
-exports.saveArbitrage = (request, response) => {
+exports.saveArbitrage = (request, response, next) => {
 	if (!request.body) {
-		response.status(400).json({
+		return response.status(400).json({
 			error: 'invalid request',
 		});
 	}
 	const arbitrage = new Arbitrage(request.body);
-	arbitrage
+	return arbitrage
 		.save()
 		.then(result => {
 			console.log('saved: ', result);
@@ -60,5 +55,6 @@ exports.saveArbitrage = (request, response) => {
 		})
 		.catch(err => {
 			console.error(err);
+			next(err);
 		});
 };
