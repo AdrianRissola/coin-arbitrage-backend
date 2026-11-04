@@ -387,19 +387,35 @@ test('empty or unknown selections do not close active markets', async () => {
 	await context.module.close({ markets: ['Missing'] });
 	expect(socket.close).not.toHaveBeenCalled();
 });
-test('stream lookup filters hosts/case and retains the last-subscription limitation', async () => {
+test('stream lookup filters market names and ticker case without scalar failures', async () => {
 	const socket = await open();
 	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
-	expect(Object.keys(context.module.getMarketTickerStream(null, 'btc-usdt'))).toEqual([
+	expect(Object.keys(context.module.getMarketTickerStream(['ALPHA'], 'btc-usdt'))).toEqual([
 		'alpha.invalid',
 	]);
-	expect(() => context.module.getMarketTickerStream(['Missing'], 'BTC-USDT')).toThrow(
-		/tickers.some is not a function/
-	);
+	expect(context.module.getMarketTickerStream(['Missing'], 'BTC-USDT')).toEqual({});
+	expect(context.module.getMarketTickerStream([], 'BTC-USDT')).toEqual({});
+	expect(context.module.getMarketTickerStream(null, 'ETH-USD')).toEqual({});
+});
+
+test('an earlier ticker retains its own price, raw frame and timestamp after another quote', async () => {
+	const socket = await open();
+	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
 	await context.module.connectAndSend([market], ['ETH-USD']);
+	jest.setSystemTime(new Date(new Date(now).getTime() + 1000));
 	await deliver(socket, { symbol: 'ETH-USD', price: 100 });
-	expect(context.module.getMarketTickerStream(null, 'BTC-USDT')).toEqual({});
-	expect(
-		context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices['BTC-USDT']
-	).toBe(80);
+	const earlier = context.module.getMarketTickerStream(null, 'BTC-USDT')['alpha.invalid'];
+	expect(earlier).toMatchObject({
+		rawData: '{"symbol":"BTC-USDT","price":80}',
+		data: {
+			ticker: 'BTC-USDT',
+			price: 80,
+			timestamp: new Date(now),
+			marketTicker: { symbol: 'BTC-USDT', price: 80 },
+		},
+	});
+	expect(context.module.getMarketTickerStream(null, 'ETH-USD')['alpha.invalid'].data.price).toBe(
+		100
+	);
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.price).toBe(100);
 });

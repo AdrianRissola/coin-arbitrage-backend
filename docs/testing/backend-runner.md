@@ -441,8 +441,11 @@ core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
 remain independent of that historical acceptance audit.
 
-Remaining characterised omissions include filtered-stream scalar versus array
-failure and stale per-ticker prices after errors.
+Filtered-stream lookup now accepts scalar or array tickers when resolving
+market names and retains a separate snapshot per ticker. Looking up an earlier
+pair returns its own price, raw frame and timestamp, not the latest pair's
+metadata. Aggregate stream/DTO shapes remain unchanged. Stale per-ticker prices
+after errors remain for the separate freshness fix.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks

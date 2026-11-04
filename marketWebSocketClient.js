@@ -13,6 +13,7 @@ const webSocketClients = {};
 const connectionToPingInterval = new WeakMap();
 const webSocketConnections = {};
 const marketHostToMessage = {};
+const marketHostToTickerStreams = {};
 const marketHostToSubscriptionId = {};
 const reconnectTimeouts = {};
 const marketConnectionRequested = {};
@@ -181,6 +182,13 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 		marketHostToMessage[connection.socket.servername].data.marketTicker = parsedMessage;
 		marketHostToMessage[connection.socket.servername].data.price = price;
 		marketHostToMessage[connection.socket.servername].data.timestamp = new Date();
+		const stream = marketHostToMessage[connection.socket.servername];
+		if (!marketHostToTickerStreams[connection.socket.servername])
+			marketHostToTickerStreams[connection.socket.servername] = {};
+		marketHostToTickerStreams[connection.socket.servername][appTicker] = {
+			...stream,
+			data: { ...stream.data, ticker: appTicker },
+		};
 	}
 };
 
@@ -349,13 +357,15 @@ exports.getMarketTickerStream = (marketsNames, ticker) => {
 	if (marketsNames) websocketHosts = marketsDBmanager.getWebsocketHosts(marketsNames, ticker);
 
 	Object.keys(marketHostToMessage).forEach(host => {
+		const stream = marketHostToTickerStreams[host]?.[ticker.toUpperCase()];
 		if (
 			(!websocketHosts || websocketHosts.includes(host)) &&
-			marketHostToMessage[host].data.ticker.toUpperCase() === ticker.toUpperCase() &&
+			stream &&
+			marketHostToMessage[host].data.tickerPrices?.[ticker.toUpperCase()] &&
 			marketHostToMessage[host].data.price &&
 			marketHostToMessage[host].connected
 		)
-			result[host] = marketHostToMessage[host];
+			result[host] = stream;
 	});
 
 	return result;
