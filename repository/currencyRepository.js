@@ -17,6 +17,7 @@ const save = async currency => {
 		})
 		.catch(err => {
 			console.error(err);
+			throw err;
 		});
 };
 

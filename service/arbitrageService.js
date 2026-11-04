@@ -72,6 +72,7 @@ const save = async arbitrage => {
 		.then(arbit => arbit)
 		.catch(err => {
 			console.error(err);
+			throw err;
 		});
 	return newArbitrageSaved;
 };

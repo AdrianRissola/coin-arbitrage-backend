@@ -119,8 +119,8 @@ handshake or paired frontend compatibility is invented.
 
 Current responses deliberately include HTML 400 for malformed JSON before CORS,
 HTML 404 for unknown routes/methods, 200 JSON `null` for insufficient arbitrage
-markets and empty 200 responses with JSON content type after swallowed saves or
-unknown socket actions. Missing map/symbol fields still reject in raw controllers,
+markets and empty 200 responses with JSON content type for unknown socket
+actions. Failed currency/market writes now reach the JSON error boundary. Missing map/symbol fields still reject in raw controllers,
 but the router forwards those rejections to the error middleware as JSON 500
 responses. Duplicate-currency and missing-market failures stop after their first
 error. CoinGecko response/request failures now use the intended BAD REQUEST
@@ -420,13 +420,43 @@ nonempty data on the same subscription. The single-ticker and REST empty-data
 contracts are unchanged. The paired FE-01 view renders its no-arbitrages state
 instead of reducing an empty list or dereferencing a missing selection.
 
+The additional persistence fix makes arbitrage, currency and individual-market
+save helpers log and rethrow the original error. New-market success awaits the
+manager refresh too; a failed refresh is returned as a failure, not discarded
+background work. HTTP tests require JSON 500 for failed writes, native WebSocket
+tests require insert failures to reach the existing subscription error boundary,
+and disposable MongoDB tests require rejected inserts/validation with no row.
+Writes and refreshes remain non-transactional; completed writes are not rolled
+back when another operation fails. Currency cache-refresh behaviour is unchanged.
+
+Selective exchange close now resolves market names case-insensitively, closes
+only those connections and cancels their heartbeat/retry/pending-dial work.
+Late dial callbacks cannot reopen a stopped connection or replace a newer dial.
+Unknown/empty selections are no-ops; all-markets close remains available. A real
+REST/native-WebSocket case requires the selected exchange to stop while other
+exchanges and the browser connection remain active.
+
 Historical paired INT audits remain pinned to the test-foundation source and
 core overlay. Their pins are not updated by these production fixes, so they
 reject the changed source/test baseline; backend runtime regression profiles
 remain independent of that historical acceptance audit.
 
-Remaining characterised omissions include filtered-stream scalar versus array
-failure and stale per-ticker prices after errors.
+Filtered-stream lookup now accepts scalar or array tickers when resolving
+market names and retains a separate snapshot per ticker. Looking up an earlier
+pair returns its own price, raw frame and timestamp, not the latest pair's
+metadata. Aggregate stream/DTO shapes remain unchanged.
+
+Exchange errors, closes and explicit stops now invalidate all cached ticker
+prices and lookup snapshots for that host. Subsequent valid messages can restore
+only their own ticker; other cached opportunities cannot reappear automatically.
+Retired connection callbacks cannot repopulate or clear a replacement's cache
+or install a retry. Message processing no longer yields between subscription
+acknowledgement and cache update, preventing a pre-error frame from resuming
+after invalidation. Native wire tests
+require no arbitrage/persistence after feed errors and recovery using only
+newly received quotes on the same browser subscription. Transport errors do not
+force-close an otherwise open connection. No age-based TTL is invented: silent
+feeds without an observed error still need an agreed quote-expiry policy.
 
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks

@@ -82,11 +82,11 @@ test.each([36, 37, undefined])(
 	}
 );
 
-test('rejected document saves retain logged undefined rather than rejecting', async () => {
+test('rejected document saves are logged and propagated unchanged', async () => {
 	const error = new Error('controlled arbitrage save failure');
 	Arbitrage.find.mockReturnValue(query([]));
 	Arbitrage.prototype.save.mockRejectedValue(error);
-	await expect(service.saveMaxProfitArbitrageByTicker(input())).resolves.toBeUndefined();
+	await expect(service.saveMaxProfitArbitrageByTicker(input())).rejects.toBe(error);
 	expect(errorLog).toHaveBeenCalledWith(error);
 });
 

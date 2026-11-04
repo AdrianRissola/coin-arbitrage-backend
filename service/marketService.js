@@ -63,13 +63,14 @@ const saveNewMarket = async newMarket => {
 	const market = new Market(newMarket);
 	return market
 		.save()
-		.then(result => {
-			marketsDBmanager.loadMarketsFromDB();
+		.then(async result => {
+			await marketsDBmanager.loadMarketsFromDB();
 			console.log('saved: ', result);
 			return result;
 		})
 		.catch(err => {
 			console.error(err);
+			throw err;
 		});
 };
 

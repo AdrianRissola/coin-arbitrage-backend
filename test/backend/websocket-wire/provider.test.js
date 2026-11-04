@@ -1,4 +1,5 @@
 const { loadWire } = require('../support/ws-wire.cjs');
+const { deliver } = require('../support/ws-runtime.cjs');
 const welcome = require('../../fixtures/contracts/v1/ws-welcome.json');
 const arbitrage = require('../../fixtures/contracts/v1/ws-arbitrage.json');
 
@@ -71,6 +72,22 @@ test('native binary messages are ignored without JSON parsing or feed startup', 
 	expect(app.transport.clients).toHaveLength(0);
 	expect([...app.clock.intervals.keys()].filter(timer => timer.delay === 1000)).toEqual([]);
 });
+test('REST selective close stops only the named exchange while its browser stays connected', async () => {
+	const app = await loadWire();
+	const consumer = await app.open();
+	await consumer.next();
+	await consumer.subscribe({ channel: 'arbitrage', ticker: 'BTC-USDT' });
+	await app.feed();
+	const response = await app.api
+		.post('/coin-arbitrage/crypto/markets/tickers/websockets')
+		.send({ action: 'close', markets: ['alpha'] })
+		.expect(200);
+	expect(response.body['alpha.invalid'].connected).toBe(false);
+	expect(response.body['beta.invalid'].connected).toBe(true);
+	expect(response.body['gamma.invalid'].connected).toBe(true);
+	expect(consumer.socket.connected).toBe(true);
+});
+
 test('Markets without ticker works on wire and disconnect clears its interval before owned cleanup', async () => {
 	const app = await loadWire();
 	const consumer = await app.open();
@@ -162,28 +179,62 @@ test('empty best frames preserve the native subscription and later data resumes'
 	expect(app.clock.intervals.has(timer)).toBe(true);
 	expect(app.saved).toHaveLength(2);
 });
-test('best-arbitrage query failures reach the handler catch and cancel only its browser timer', async () => {
+test('errors drop stale opportunities until fresh quotes recover on the same subscription', async () => {
 	const app = await loadWire();
 	const consumer = await app.open();
 	await consumer.next();
 	const timer = await consumer.subscribe({ channel: 'bestArbitrage', ticker: 'ALL' });
+	const sockets = [];
+	app.transport.clients.forEach(client => client.once('connect', socket => sockets.push(socket)));
 	await app.feed();
-	app.historySort.mockImplementation(() => ({
-		limit: () => Promise.reject(new Error('controlled best-arbitrage query failure')),
-	}));
-	await expect(app.clock.run(timer)).resolves.toBeUndefined();
-	expect(app.clock.intervals.has(timer)).toBe(false);
-	expect(jest.spyOn(console, 'log')).toHaveBeenCalledWith(
-		'error in setInterval bestArbitrage: Error: controlled best-arbitrage query failure'
-	);
-	expect(consumer.socket.connected).toBe(true);
+	sockets.forEach(socket => socket.emit('error', new Error('controlled quote failure')));
+	const empty = consumer.next();
+	await app.clock.run(timer);
+	expect((await empty).bestArbitrages.arbitragesData).toEqual([]);
 	expect(app.saved).toHaveLength(0);
-	expect(app.transport.clients.every(client => client.abort.mock.calls.length === 0)).toBe(true);
-	const replacement = await consumer.subscribe({ channel: 'Markets' });
-	const response = consumer.next();
-	await app.clock.run(replacement);
-	expect(await response).toMatchObject({ channel: 'markets' });
+	expect(app.clock.intervals.has(timer)).toBe(true);
+	await deliver(sockets[0], { symbol: 'BTC-USDT', price: 80 });
+	await deliver(sockets[1], { symbol: 'BTC-USDT', price: 100 });
+	app.planSave('Arbitrage');
+	const recovered = consumer.next();
+	await app.clock.run(timer);
+	const rows = (await recovered).bestArbitrages.arbitragesData;
+	expect(rows).toHaveLength(1);
+	expect(rows[0].arbitrage.transactions[0].pair).toBe('BTC-USDT');
+	expect(app.saved).toHaveLength(1);
 });
+
+test.each(['query', 'insert'])(
+	'best-arbitrage %s failures reach the handler catch and cancel only its browser timer',
+	async stage => {
+		const app = await loadWire();
+		const consumer = await app.open();
+		await consumer.next();
+		const timer = await consumer.subscribe({ channel: 'bestArbitrage', ticker: 'ALL' });
+		await app.feed();
+		const failure = new Error(`controlled best-arbitrage ${stage} failure`);
+		if (stage === 'query') {
+			app.historySort.mockImplementation(() => ({ limit: () => Promise.reject(failure) }));
+		} else {
+			app.planSave('Arbitrage', { error: failure });
+			app.planSave('Arbitrage', { error: failure });
+		}
+		await expect(app.clock.run(timer)).resolves.toBeUndefined();
+		expect(app.clock.intervals.has(timer)).toBe(false);
+		expect(jest.spyOn(console, 'log')).toHaveBeenCalledWith(
+			`error in setInterval bestArbitrage: Error: controlled best-arbitrage ${stage} failure`
+		);
+		expect(consumer.socket.connected).toBe(true);
+		expect(app.saved).toHaveLength(stage === 'query' ? 0 : 2);
+		expect(app.transport.clients.every(client => client.abort.mock.calls.length === 0)).toBe(
+			true
+		);
+		const replacement = await consumer.subscribe({ channel: 'Markets' });
+		const response = consumer.next();
+		await app.clock.run(replacement);
+		expect(await response).toMatchObject({ channel: 'markets' });
+	}
+);
 test('channel replacement and independent native clients preserve exact per-client intervals', async () => {
 	const app = await loadWire();
 	const first = await app.open();

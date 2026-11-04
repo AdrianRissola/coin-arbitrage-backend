@@ -185,9 +185,10 @@ test('WebSocket selection applies ticker and market-name filters', () => {
 	expect(manager.getWebsocketHosts(['alpha'], ['BTC-USDT'])).toEqual(['alpha.invalid']);
 });
 
-test('a string ticker argument retains its native some-is-not-a-function failure', () => {
-	manager.setMarketsFromDB([market('Alpha')]);
-	expect(() => manager.getWebsocketHosts(null, 'BTC-USDT')).toThrow(TypeError);
+test('host lookup accepts scalar tickers and preserves name filtering', () => {
+	manager.setMarketsFromDB([market('Alpha'), market('Beta')]);
+	expect(manager.getWebsocketHosts(['ALPHA'], 'btc-usdt')).toEqual(['alpha.invalid']);
+	expect(manager.getWebsocketHosts(['Missing'], 'BTC-USDT')).toEqual([]);
 });
 
 test('uninitialized WebSocket market state returns null without querying Mongo', () => {

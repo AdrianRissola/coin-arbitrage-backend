@@ -64,7 +64,10 @@ exports.getMarketByWebsocketHost = websocketHost => {
 };
 
 exports.getWebsocketHosts = (marketsNames, ticker) => {
-	const markets = this.getMarketsWithWebsocket(ticker, marketsNames);
+	const markets = this.getMarketsWithWebsocket(
+		typeof ticker === 'string' ? [ticker] : ticker,
+		marketsNames
+	);
 
 	const websocketHosts = [];
 	markets.forEach(market => {

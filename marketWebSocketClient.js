@@ -13,6 +13,7 @@ const webSocketClients = {};
 const connectionToPingInterval = new WeakMap();
 const webSocketConnections = {};
 const marketHostToMessage = {};
+const marketHostToTickerStreams = {};
 const marketHostToSubscriptionId = {};
 const reconnectTimeouts = {};
 const marketConnectionRequested = {};
@@ -92,7 +93,7 @@ const getSubscriptionId = (market, messageResponse) => {
 	return subscriptionId;
 };
 
-const putSubscriptionId = async (connection, market, messageResponse) => {
+const putSubscriptionId = (connection, market, messageResponse) => {
 	if (
 		market.com.api.websocket.pathToSubscriptionId &&
 		market.com.api.websocket.pathToSubscriptionId.length > 0
@@ -181,6 +182,13 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 		marketHostToMessage[connection.socket.servername].data.marketTicker = parsedMessage;
 		marketHostToMessage[connection.socket.servername].data.price = price;
 		marketHostToMessage[connection.socket.servername].data.timestamp = new Date();
+		const stream = marketHostToMessage[connection.socket.servername];
+		if (!marketHostToTickerStreams[connection.socket.servername])
+			marketHostToTickerStreams[connection.socket.servername] = {};
+		marketHostToTickerStreams[connection.socket.servername][appTicker] = {
+			...stream,
+			data: { ...stream.data, ticker: appTicker },
+		};
 	}
 };
 
@@ -213,28 +221,37 @@ const scheduleReconnect = market => {
 	}, RECONNECT_DELAY_IN_MS);
 };
 
+const invalidateMarketStream = host => {
+	delete marketHostToTickerStreams[host];
+	const stream = marketHostToMessage[host];
+	if (!stream) return;
+	stream.connected = false;
+	if (stream.data) {
+		stream.data.price = null;
+		stream.data.tickerPrices = null;
+	}
+};
+
 const handleConnection = (connection, market) => {
+	const acceptsMessages = () =>
+		webSocketConnections[connection.socket.servername] === connection &&
+		marketConnectionRequested[connection.socket.servername] &&
+		connection.connected;
 	sendPing(connection);
 	console.log(`Connection OK: ${connection.socket.servername}`);
 
 	connection.on('error', error => {
-		if (marketHostToMessage[connection.socket.servername]) {
-			marketHostToMessage[connection.socket.servername].connected = connection.connected;
-			if (marketHostToMessage[connection.socket.servername].data)
-				marketHostToMessage[connection.socket.servername].data.price = null;
-		}
+		if (webSocketConnections[connection.socket.servername] !== connection) return;
+		invalidateMarketStream(connection.socket.servername);
 		console.log(`Connection Error: ${connection.socket.servername} - ${JSON.stringify(error)}`);
 	});
 
 	connection.on('close', () => {
-		Object.assign(market, { connected: false });
 		clearInterval(connectionToPingInterval.get(connection));
 		connectionToPingInterval.delete(connection);
-		if (marketHostToMessage[connection.socket.servername]) {
-			marketHostToMessage[connection.socket.servername].connected = connection.connected;
-			marketHostToMessage[connection.socket.servername].data.price = null;
-			marketHostToMessage[connection.socket.servername].data.tickerPrices = null;
-		}
+		if (webSocketConnections[connection.socket.servername] !== connection) return;
+		Object.assign(market, { connected: false });
+		invalidateMarketStream(connection.socket.servername);
 		console.log(
 			'Connection Closed:',
 			connection.socket.servername,
@@ -247,6 +264,7 @@ const handleConnection = (connection, market) => {
 	});
 
 	connection.on('message', async message => {
+		if (!acceptsMessages()) return;
 		if (message.type === 'utf8' || message.type === 'binary') {
 			let parsedMessage = null;
 
@@ -266,8 +284,9 @@ const handleConnection = (connection, market) => {
 			logger.logDataByHost(connection.socket.servername, parsedMessage);
 
 			try {
-				if (await putSubscriptionId(connection, foundMmarket, parsedMessage))
+				if (putSubscriptionId(connection, foundMmarket, parsedMessage))
 					subscribeNext(foundMmarket);
+				if (!acceptsMessages()) return;
 
 				putMessage(connection, message, parsedMessage, market);
 
@@ -308,6 +327,7 @@ connectMarket = market => {
 	webSocketClients[host] = marketClient;
 
 	const handleConnectFailed = error => {
+		if (!marketConnectionRequested[host] || webSocketClients[host] !== marketClient) return;
 		console.log(`connectFailed for: ${host} ${error.toString()}`);
 		Object.assign(market, { connected: false });
 		if (webSocketClients[host] === marketClient) delete webSocketClients[host];
@@ -321,7 +341,11 @@ connectMarket = market => {
 
 	marketClient.on('connectFailed', handleConnectFailed);
 	marketClient.on('connect', connection => {
-		if (webSocketClients[host] === marketClient) delete webSocketClients[host];
+		if (!marketConnectionRequested[host] || webSocketClients[host] !== marketClient) {
+			connection.close();
+			return;
+		}
+		delete webSocketClients[host];
 		webSocketConnections[host] = connection;
 		Object.assign(market, { connected: true });
 		handleConnection(connection, market);
@@ -344,13 +368,15 @@ exports.getMarketTickerStream = (marketsNames, ticker) => {
 	if (marketsNames) websocketHosts = marketsDBmanager.getWebsocketHosts(marketsNames, ticker);
 
 	Object.keys(marketHostToMessage).forEach(host => {
+		const stream = marketHostToTickerStreams[host]?.[ticker.toUpperCase()];
 		if (
 			(!websocketHosts || websocketHosts.includes(host)) &&
-			marketHostToMessage[host].data.ticker.toUpperCase() === ticker.toUpperCase() &&
+			stream &&
+			marketHostToMessage[host].data.tickerPrices?.[ticker.toUpperCase()] &&
 			marketHostToMessage[host].data.price &&
 			marketHostToMessage[host].connected
 		)
-			result[host] = marketHostToMessage[host];
+			result[host] = stream;
 	});
 
 	return result;
@@ -362,6 +388,7 @@ exports.getWebSocketConnections = () => dtoConverter.toConnectionsDto(webSocketC
 
 const stopMarketConnection = host => {
 	marketConnectionRequested[host] = false;
+	invalidateMarketStream(host);
 	clearReconnectTimeout(host);
 	delete marketToSyncSubscription[host];
 	delete marketHostToSubscriptionId[host];
@@ -429,12 +456,25 @@ exports.connectAndSend = async (markets, tickers) => {
 };
 
 exports.close = async websocketsActions => {
-	if (websocketsActions.allMarkets) {
-		Object.keys(webSocketConnections).forEach(host => {
-			stopMarketConnection(host);
-			if (webSocketConnections[host] && webSocketConnections[host].connected)
-				webSocketConnections[host].close();
-		});
+	let hosts = Object.keys(webSocketConnections);
+	if (!websocketsActions.allMarkets) {
+		const markets = await marketsDBmanager.getMarketsByNames(
+			websocketsActions.markets || [],
+			'websocket'
+		);
+		hosts = markets.map(market => market.com.api.websocket.host);
 	}
+	hosts.forEach(host => {
+		stopMarketConnection(host);
+		const connection = webSocketConnections[host];
+		if (connection?.connected) connection.close();
+		else if (connection?.state === 'connecting') {
+			webSocketConnections[host] = {
+				connected: false,
+				state: 'closed',
+				closeDescription: 'closed by request',
+			};
+		}
+	});
 	return dtoConverter.toConnectionsDto(webSocketConnections);
 };

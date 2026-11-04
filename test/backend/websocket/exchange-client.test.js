@@ -274,15 +274,68 @@ test.each([undefined, null, 0])('ping frequency %p leaves heartbeats disabled', 
 	await open({ pingFrequencyInSeconds: frequency });
 	expect(clock.intervals.size).toBe(0);
 });
-test('error clears only latest price, preserving per-ticker prices and connected flag as supplied', async () => {
+test('error invalidates every cached ticker and recovery restores only fresh quotes', async () => {
 	const socket = await open();
 	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
+	await deliver(socket, { symbol: 'ETH-USD', price: 90 });
 	socket.emit('error', new Error('controlled error'));
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid']).toMatchObject({
-		connected: true,
-		data: { price: null, tickerPrices: { 'BTC-USDT': 80 } },
+		connected: false,
+		data: { price: null, tickerPrices: null },
 	});
+	await deliver(socket, { symbol: 'BTC-USDT', price: 100 });
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid']).toMatchObject({
+		connected: true,
+		data: { tickerPrices: { 'BTC-USDT': 100 } },
+	});
+	expect(context.module.getMarketTickerStream(null, 'ETH-USD')).toEqual({});
 });
+
+test('explicit stop invalidates quotes before the asynchronous close event', async () => {
+	const socket = await open();
+	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
+	socket.close.mockImplementation(() => {});
+	await context.module.close({ markets: ['Alpha'] });
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid']).toMatchObject({
+		connected: false,
+		data: { price: null, tickerPrices: null },
+	});
+	await deliver(socket, { symbol: 'BTC-USDT', price: 1 });
+	expect(context.module.getMarketTickerStream(null, 'BTC-USDT')).toEqual({});
+});
+
+test('retired connection callbacks cannot corrupt a replacement or schedule retries', async () => {
+	const first = await open();
+	await deliver(first, { symbol: 'BTC-USDT', price: 80 });
+	first.close();
+	await clock.run([...clock.timeouts.keys()][0]);
+	const next = connection('alpha.invalid');
+	context.clients[1].emit('connect', next);
+	await deliver(next, { symbol: 'BTC-USDT', price: 100 });
+	first.emit('error', new Error('late retired error'));
+	first.emit('close');
+	await deliver(first, { symbol: 'BTC-USDT', price: 1 });
+	expect(context.module.getMarketTickerStream(null, 'BTC-USDT')['alpha.invalid'].data.price).toBe(
+		100
+	);
+	expect(clock.timeouts.size).toBe(0);
+});
+
+test.each(['error', 'close'])(
+	'a %s during message delivery cannot restore invalidated quotes',
+	async event => {
+		const socket = await open();
+		await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
+		const pending = deliver(socket, { symbol: 'BTC-USDT', price: 1 });
+		if (event === 'close') socket.close();
+		else socket.emit('error', new Error('error during delivery'));
+		await pending;
+		expect(context.module.getAllMarketTickerStream()['alpha.invalid']).toMatchObject({
+			connected: false,
+			data: { price: null, tickerPrices: null },
+		});
+	}
+);
 test('close clears stream prices/ping, schedules one 30-second retry and close-all cancels it', async () => {
 	const socket = await open({ pingFrequencyInSeconds: 3 });
 	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
@@ -325,26 +378,97 @@ test('synchronous connect exceptions enter the same bounded retry path', async (
 	await clock.run(timer);
 	expect(context.clients).toHaveLength(2);
 });
-test('selective close actions currently do nothing while allMarkets closes and cancels pending clients', async () => {
+test('selective close stops the selected market and its heartbeat once', async () => {
 	const socket = await open({ pingFrequencyInSeconds: 3 });
-	await context.module.close({ markets: ['Alpha'] });
-	expect(socket.close).not.toHaveBeenCalled();
-	await context.module.close({ allMarkets: true });
+	await context.module.close({ markets: ['alpha', 'ALPHA'] });
 	expect(socket.close).toHaveBeenCalledTimes(1);
+	expect(clock.intervals.size).toBe(0);
+	expect(clock.timeouts.size).toBe(0);
 });
-test('stream lookup filters hosts/case and retains the last-subscription limitation', async () => {
+
+test('selective close preserves other markets and their heartbeats', async () => {
+	const markets = ['Alpha', 'Beta'].map(name =>
+		exchangeMarket(name, { pingFrequencyInSeconds: 3 })
+	);
+	context.manager.setMarketsFromDB(markets);
+	await context.module.connectAndSend(markets, ['BTC-USDT']);
+	const sockets = markets.map((entry, index) => {
+		const socket = connection(entry.com.api.websocket.host);
+		context.clients[index].emit('connect', socket);
+		return socket;
+	});
+	await context.module.close({ markets: ['Alpha'] });
+	expect(sockets[0].close).toHaveBeenCalledTimes(1);
+	expect(sockets[1].close).not.toHaveBeenCalled();
+	expect(clock.intervals.size).toBe(1);
+	expect(clock.timeouts.size).toBe(0);
+});
+
+test('selective close aborts pending dials and ignores their late callbacks', async () => {
+	market = exchangeMarket();
+	context.manager.setMarketsFromDB([market]);
+	await context.module.connectAndSend([market], ['BTC-USDT']);
+	const client = context.clients[0];
+	const status = await context.module.close({ markets: ['Alpha'] });
+	expect(client.abort).toHaveBeenCalledTimes(1);
+	expect(status['alpha.invalid']).toMatchObject({ connected: false, state: 'closed' });
+	client.emit('connectFailed', new Error('late failure after abort'));
+	const late = connection('alpha.invalid');
+	client.emit('connect', late);
+	expect(late.close).toHaveBeenCalledTimes(1);
+	expect(late.sent).toEqual([]);
+	expect(clock.timeouts.size).toBe(0);
+	expect(clock.intervals.size).toBe(0);
+});
+
+test('selective close cancels a retry and permits an explicit fresh open', async () => {
+	const first = await open();
+	first.close();
+	expect(clock.timeouts.size).toBe(1);
+	await context.module.close({ markets: ['Alpha'] });
+	expect(clock.timeouts.size).toBe(0);
+	await context.module.connectAndSend([market], ['BTC-USDT']);
+	const next = connection('alpha.invalid');
+	context.clients[1].emit('connect', next);
+	expect(next.sent).toEqual(['{"symbol":"BTC-USDT"}']);
+	expect(next.close).not.toHaveBeenCalled();
+});
+
+test('empty or unknown selections do not close active markets', async () => {
+	const socket = await open();
+	await context.module.close({ markets: [] });
+	await context.module.close({ markets: ['Missing'] });
+	expect(socket.close).not.toHaveBeenCalled();
+});
+test('stream lookup filters market names and ticker case without scalar failures', async () => {
 	const socket = await open();
 	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
-	expect(Object.keys(context.module.getMarketTickerStream(null, 'btc-usdt'))).toEqual([
+	expect(Object.keys(context.module.getMarketTickerStream(['ALPHA'], 'btc-usdt'))).toEqual([
 		'alpha.invalid',
 	]);
-	expect(() => context.module.getMarketTickerStream(['Missing'], 'BTC-USDT')).toThrow(
-		/tickers.some is not a function/
-	);
+	expect(context.module.getMarketTickerStream(['Missing'], 'BTC-USDT')).toEqual({});
+	expect(context.module.getMarketTickerStream([], 'BTC-USDT')).toEqual({});
+	expect(context.module.getMarketTickerStream(null, 'ETH-USD')).toEqual({});
+});
+
+test('an earlier ticker retains its own price, raw frame and timestamp after another quote', async () => {
+	const socket = await open();
+	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
 	await context.module.connectAndSend([market], ['ETH-USD']);
+	jest.setSystemTime(new Date(new Date(now).getTime() + 1000));
 	await deliver(socket, { symbol: 'ETH-USD', price: 100 });
-	expect(context.module.getMarketTickerStream(null, 'BTC-USDT')).toEqual({});
-	expect(
-		context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices['BTC-USDT']
-	).toBe(80);
+	const earlier = context.module.getMarketTickerStream(null, 'BTC-USDT')['alpha.invalid'];
+	expect(earlier).toMatchObject({
+		rawData: '{"symbol":"BTC-USDT","price":80}',
+		data: {
+			ticker: 'BTC-USDT',
+			price: 80,
+			timestamp: new Date(now),
+			marketTicker: { symbol: 'BTC-USDT', price: 80 },
+		},
+	});
+	expect(context.module.getMarketTickerStream(null, 'ETH-USD')['alpha.invalid'].data.price).toBe(
+		100
+	);
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.price).toBe(100);
 });

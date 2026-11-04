@@ -1,3 +1,4 @@
+const { setImmediate } = require('node:timers');
 const axios = require('axios');
 const Market = require('../../../model/Market');
 const manager = require('../../../marketsDBmanager');
@@ -145,7 +146,7 @@ test('an exchange rejection propagates instead of silently dropping that price',
 	});
 });
 
-test('new-market validation awaits exchange prices and document save but does not await cache reload', async () => {
+test('new-market validation awaits exchange prices, document save and cache reload', async () => {
 	const quote = deferred();
 	const saved = deferred();
 	const reload = deferred();
@@ -165,23 +166,45 @@ test('new-market validation awaits exchange prices and document save but does no
 		return saved.promise;
 	});
 	const document = await saveStarted.promise;
+	let settled = false;
+	request.then(() => {
+		settled = true;
+	});
 	saved.resolve(document);
+	try {
+		await new Promise(resolve => {
+			setImmediate(resolve);
+		});
+		expect(settled).toBe(false);
+		expect(find).toHaveBeenCalledWith({});
+		expect(manager.getAllMarkets()).toEqual([]);
+	} finally {
+		reload.resolve(reloaded);
+		await request;
+	}
 	await expect(request).resolves.toBe(document);
-	expect(find).toHaveBeenCalledWith({});
-	expect(manager.getAllMarkets()).toEqual([]);
-	reload.resolve(reloaded);
-	await reload.promise;
 	expect(manager.getAllMarkets()).toEqual(reloaded);
 });
 
-test('failed market save is logged and resolves undefined without reloading', async () => {
+test('failed market save is logged and rejects without reloading', async () => {
 	const error = new Error('controlled save failure');
 	jest.spyOn(Market.prototype, 'save').mockRejectedValue(error);
 	const find = jest.spyOn(Market, 'find');
 	transport = controlAxios(axios, [{ data: { price: '80' } }]);
-	await expect(service.saveNewMarket(market())).resolves.toBeUndefined();
+	await expect(service.saveNewMarket(market())).rejects.toBe(error);
 	expect(errorLog).toHaveBeenCalledWith(error);
 	expect(find).not.toHaveBeenCalled();
+});
+
+test('a new-market cache refresh failure is logged and rejects after saving', async () => {
+	const error = new Error('controlled market cache refresh failure');
+	jest.spyOn(Market.prototype, 'save').mockImplementation(function saveDocument() {
+		return Promise.resolve(this);
+	});
+	jest.spyOn(Market, 'find').mockRejectedValue(error);
+	transport = controlAxios(axios, [{ data: { price: '80' } }]);
+	await expect(service.saveNewMarket(market())).rejects.toBe(error);
+	expect(errorLog).toHaveBeenCalledWith(error);
 });
 
 test('a failed pre-save exchange validation prevents document saving', async () => {
