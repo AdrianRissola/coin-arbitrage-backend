@@ -122,7 +122,7 @@ test('subscription-ID acknowledgements retain independent ticker-price associati
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data).toMatchObject({
 		ticker: 'ETH-USD',
 		tickerPrices: { 'BTC-USDT': 81, 'ETH-USD': 100 },
-		subscriptionId: { 7: 'ETH-USD', 9: 'ETH-USD' },
+		subscriptionId: { 7: 'BTC-USDT', 9: 'ETH-USD' },
 	});
 	expect(context.clients).toHaveLength(1);
 });

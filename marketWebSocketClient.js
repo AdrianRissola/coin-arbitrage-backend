@@ -192,8 +192,9 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	marketHostToMessage[connection.socket.servername].data.market = market;
 	if (!marketHostToMessage[connection.socket.servername].data.subscriptionId)
 		marketHostToMessage[connection.socket.servername].data.subscriptionId = {};
-	marketHostToMessage[connection.socket.servername].data.subscriptionId[subscriptionId] =
-		connection.currentTickerSubscription;
+	if (subscriptionId != null)
+		marketHostToMessage[connection.socket.servername].data.subscriptionId[subscriptionId] =
+			appTicker || marketHostToSubscriptionId[host]?.[subscriptionId];
 	const { tickerPrices } = marketHostToMessage[connection.socket.servername].data;
 	if (!tickerPrices) marketHostToMessage[connection.socket.servername].data.tickerPrices = {};
 	marketHostToMessage[connection.socket.servername].data.tickerPrices[appTicker] = price;
