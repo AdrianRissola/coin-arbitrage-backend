@@ -291,6 +291,46 @@ test('error invalidates every cached ticker and recovery restores only fresh quo
 	expect(context.module.getMarketTickerStream(null, 'ETH-USD')).toEqual({});
 });
 
+test.each([
+	{ symbol: 'BTC-USDT' },
+	{ symbol: 'BTC-USDT', price: 'bad' },
+	{ symbol: 'BTC-USDT', error: 'rate limit' },
+])('a %j frame without a valid requested price removes the stored quote', async frame => {
+	const socket = await open();
+	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
+	await deliver(socket, frame);
+	expect(context.module.getMarketTickerStream(null, 'BTC-USDT')).toEqual({});
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices).toEqual(
+		{}
+	);
+});
+
+test('an unattributable price cannot overwrite the requested ticker quote', async () => {
+	const socket = await open();
+	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
+	await deliver(socket, { price: 90 });
+	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data).toMatchObject({
+		ticker: 'BTC-USDT',
+		price: 80,
+		tickerPrices: { 'BTC-USDT': 80 },
+	});
+	expect(
+		context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices.null
+	).toBeUndefined();
+});
+
+test('a wrong-ticker price does not replace or clear the requested ticker quote', async () => {
+	const socket = await open({}, ['BTC-USDT', 'ETH-USD']);
+	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });
+	await deliver(socket, { symbol: 'ETH-USD', price: 90 });
+	expect(context.module.getMarketTickerStream(null, 'BTC-USDT')['alpha.invalid'].data.price).toBe(
+		80
+	);
+	expect(context.module.getMarketTickerStream(null, 'ETH-USD')['alpha.invalid'].data.price).toBe(
+		90
+	);
+});
+
 test('explicit stop invalidates quotes before the asynchronous close event', async () => {
 	const socket = await open();
 	await deliver(socket, { symbol: 'BTC-USDT', price: 80 });

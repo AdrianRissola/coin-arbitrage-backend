@@ -458,6 +458,14 @@ newly received quotes on the same browser subscription. Transport errors do not
 force-close an otherwise open connection. No age-based TTL is invented: silent
 feeds without an observed error still need an agreed quote-expiry policy.
 
+A frame attributed to a ticker but carrying no valid price (missing, invalid or
+unavailable price extraction) now removes that ticker's stored quote, per-ticker
+snapshot and, when it was the latest, the shared `price`/`marketTicker` fields.
+Frames that cannot be attributed to a ticker never overwrite the stored quote or
+create a `null` key. A valid price for another ticker does not replace or clear
+the requested ticker's quote. Unattributable exchange error frames still cannot
+be assigned to a ticker, so they do not invalidate any specific quote.
+
 Fixture teardown asserts pending frame readers are settled, closes native peers
 and server, closes/cancels owned exchange fakes, removes captured timer callbacks
 and lets the HTTP lease revoke/destroy its own sockets. Production omissions are
