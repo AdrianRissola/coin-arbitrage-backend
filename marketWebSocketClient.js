@@ -157,39 +157,58 @@ const getAppTicker = (market, messageResponse) => {
 	return appTicker;
 };
 
+const invalidateTickerQuote = (host, appTicker) => {
+	const stream = marketHostToMessage[host];
+	if (stream?.data?.tickerPrices) delete stream.data.tickerPrices[appTicker];
+	if (marketHostToTickerStreams[host]) delete marketHostToTickerStreams[host][appTicker];
+	if (stream?.data?.ticker === appTicker) {
+		stream.data.price = null;
+		stream.data.marketTicker = null;
+	}
+};
+
 const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	const appTicker = getAppTicker(market, parsedMessage);
-	const price = getPrice(market, parsedMessage, appTicker);
+	const host = connection.socket.servername;
+	let price = null;
+	try {
+		price = getPrice(market, parsedMessage, appTicker);
+	} catch (error) {
+		if (appTicker) invalidateTickerQuote(host, appTicker);
+		return;
+	}
 	const subscriptionId = getSubscriptionId(market, parsedMessage);
 
-	if (price && marketHelper.isAvailablePairCurrencyByMarket(parsedMessage, market)) {
-		if (!marketHostToMessage[connection.socket.servername])
-			marketHostToMessage[connection.socket.servername] = {};
-		marketHostToMessage[connection.socket.servername].connected = connection.connected;
-		marketHostToMessage[connection.socket.servername].rawData = rawMessage.utf8Data;
-		if (!marketHostToMessage[connection.socket.servername].data)
-			marketHostToMessage[connection.socket.servername].data = {};
-		marketHostToMessage[connection.socket.servername].data.market = market;
-		if (!marketHostToMessage[connection.socket.servername].data.subscriptionId)
-			marketHostToMessage[connection.socket.servername].data.subscriptionId = {};
-		marketHostToMessage[connection.socket.servername].data.subscriptionId[subscriptionId] =
-			connection.currentTickerSubscription;
-		const { tickerPrices } = marketHostToMessage[connection.socket.servername].data;
-		if (!tickerPrices) marketHostToMessage[connection.socket.servername].data.tickerPrices = {};
-		marketHostToMessage[connection.socket.servername].data.tickerPrices[appTicker] = price;
-		marketHostToMessage[connection.socket.servername].data.ticker =
-			connection.currentTickerSubscription;
-		marketHostToMessage[connection.socket.servername].data.marketTicker = parsedMessage;
-		marketHostToMessage[connection.socket.servername].data.price = price;
-		marketHostToMessage[connection.socket.servername].data.timestamp = new Date();
-		const stream = marketHostToMessage[connection.socket.servername];
-		if (!marketHostToTickerStreams[connection.socket.servername])
-			marketHostToTickerStreams[connection.socket.servername] = {};
-		marketHostToTickerStreams[connection.socket.servername][appTicker] = {
-			...stream,
-			data: { ...stream.data, ticker: appTicker },
-		};
+	if (!price || !marketHelper.isAvailablePairCurrencyByMarket(parsedMessage, market)) {
+		if (appTicker) invalidateTickerQuote(host, appTicker);
+		return;
 	}
+	if (!marketHostToMessage[connection.socket.servername])
+		marketHostToMessage[connection.socket.servername] = {};
+	marketHostToMessage[connection.socket.servername].connected = connection.connected;
+	marketHostToMessage[connection.socket.servername].rawData = rawMessage.utf8Data;
+	if (!marketHostToMessage[connection.socket.servername].data)
+		marketHostToMessage[connection.socket.servername].data = {};
+	marketHostToMessage[connection.socket.servername].data.market = market;
+	if (!marketHostToMessage[connection.socket.servername].data.subscriptionId)
+		marketHostToMessage[connection.socket.servername].data.subscriptionId = {};
+	marketHostToMessage[connection.socket.servername].data.subscriptionId[subscriptionId] =
+		connection.currentTickerSubscription;
+	const { tickerPrices } = marketHostToMessage[connection.socket.servername].data;
+	if (!tickerPrices) marketHostToMessage[connection.socket.servername].data.tickerPrices = {};
+	marketHostToMessage[connection.socket.servername].data.tickerPrices[appTicker] = price;
+	marketHostToMessage[connection.socket.servername].data.ticker =
+		connection.currentTickerSubscription;
+	marketHostToMessage[connection.socket.servername].data.marketTicker = parsedMessage;
+	marketHostToMessage[connection.socket.servername].data.price = price;
+	marketHostToMessage[connection.socket.servername].data.timestamp = new Date();
+	const stream = marketHostToMessage[connection.socket.servername];
+	if (!marketHostToTickerStreams[connection.socket.servername])
+		marketHostToTickerStreams[connection.socket.servername] = {};
+	marketHostToTickerStreams[connection.socket.servername][appTicker] = {
+		...stream,
+		data: { ...stream.data, ticker: appTicker },
+	};
 };
 
 const subscribeNext = market => {
