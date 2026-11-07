@@ -1,12 +1,6 @@
 const cases = [
 	['Bitfinex', 'BTC-USD', 'tBTCUSD', 'https://api-pub.bitfinex.com/v2/ticker/tBTCUSD'],
 	['Coinbase', 'BTC-USD', 'BTC-USD', 'https://api.exchange.coinbase.com/products/BTC-USD/ticker'],
-	[
-		'Bitmex',
-		'BTC-USD',
-		'xbtusd',
-		'https://www.bitmex.com/api/v1/trade?symbol=xbtusd&count=1&reverse=true',
-	],
 	['Bitstamp', 'BTC-USD', 'btcusd', 'https://www.bitstamp.net/api/v2/ticker/btcusd'],
 	[
 		'Binance',
@@ -21,17 +15,11 @@ const cases = [
 		'Okex',
 		'BTC-USDT',
 		'BTC-USDT',
-		'https://www.okex.com/api/v5/market/ticker?instId=BTC-USDT-SWAP',
+		'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP',
 	],
 	['Bitstamp', 'BTC-USDT', 'btcusdt', 'https://www.bitstamp.net/api/v2/ticker/btcusdt'],
 	['Bitfinex', 'ETH-USD', 'tETHUSD', 'https://api-pub.bitfinex.com/v2/ticker/tETHUSD'],
 	['Coinbase', 'ETH-USD', 'ETH-USD', 'https://api.exchange.coinbase.com/products/ETH-USD/ticker'],
-	[
-		'Bitmex',
-		'ETH-USD',
-		'ethusd',
-		'https://www.bitmex.com/api/v1/trade?symbol=ethusd&count=1&reverse=true',
-	],
 	['Bitstamp', 'ETH-USD', 'ethusd', 'https://www.bitstamp.net/api/v2/ticker/ethusd'],
 	[
 		'Binance',
@@ -46,7 +34,7 @@ const cases = [
 		'Okex',
 		'ETH-USDT',
 		'ETH-USDT',
-		'https://www.okex.com/api/v5/market/ticker?instId=ETH-USDT-SWAP',
+		'https://www.okx.com/api/v5/market/ticker?instId=ETH-USDT-SWAP',
 	],
 	['Bitstamp', 'ETH-USDT', 'ethusdt', 'https://www.bitstamp.net/api/v2/ticker/ethusdt'],
 ];
@@ -58,7 +46,6 @@ const bodies = {
 	Poloniex: { USDT_BTC: { last: '80' }, USDT_ETH: { last: '80' } },
 	Kraken: { result: { XBTUSDT: { c: ['80'] }, ETHUSDT: { c: ['80'] } } },
 	Okex: { data: [{ last: '80' }] },
-	Bitmex: [{ price: '80' }],
 	Bitstamp: { last: '80' },
 };
 

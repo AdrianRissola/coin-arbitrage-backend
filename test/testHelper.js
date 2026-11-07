@@ -420,13 +420,13 @@ module.exports = Object.freeze({
 			com: {
 				api: {
 					rest: {
-						base: 'https://www.okex.com/api/v5',
+						base: 'https://www.okx.com/api/v5',
 						tickerPath: '/market/ticker?instId=${ticker}-SWAP',
 						pathToPrice: ['data', 'data', 0, 'last'],
 					},
 					websocket: {
 						host: 'ws.okx.com',
-						url: 'wss://${host}:8443/ws/v5/public',
+						url: 'wss://${host}/ws/v5/public',
 						tickerRequest:
 							'{"op": "subscribe","args": [{"channel": "tickers","instId": "${ticker}"}]}',
 						availableTickersToMarketTickers: {
@@ -470,6 +470,7 @@ module.exports = Object.freeze({
 		},
 		{
 			name: 'Bitmex',
+			enabled: false,
 			type: 'Exchange with order book',
 			availableTickersToMarketTickers: {
 				'BTC-USD': 'xbtusd',
