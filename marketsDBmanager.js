@@ -5,7 +5,7 @@ let availableTickers = null;
 let availableCurrencies = null;
 
 exports.setMarketsFromDB = markets => {
-	marketsFromDB = markets;
+	marketsFromDB = markets && markets.filter(market => market.enabled !== false);
 };
 
 const getMarketByName = name => {

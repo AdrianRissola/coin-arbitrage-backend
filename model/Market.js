@@ -95,6 +95,7 @@ const comSchema = new mongoose.Schema({
 
 const marketSchema = new mongoose.Schema({
 	name: String,
+	enabled: Boolean,
 	website: String,
 	type: String,
 	availableTickersToMarketTickers: availableTickersToMarketTickersSchema,

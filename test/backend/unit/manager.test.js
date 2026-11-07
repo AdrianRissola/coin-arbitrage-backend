@@ -125,6 +125,17 @@ test('null currency state has different existing all-pair and per-type outcomes'
 	expect(() => manager.getAvailableCurrenciesByType('base')).toThrow(TypeError);
 });
 
+test('disabled markets are excluded from every lookup while enabled and unflagged markets remain', async () => {
+	const alpha = market('Alpha');
+	const beta = { ...market('Beta'), enabled: false };
+	manager.setMarketsFromDB([alpha, beta]);
+	expect(manager.getAllMarkets().map(value => value.name)).toEqual(['Alpha']);
+	expect(manager.getMarketByName('beta')).toBeNull();
+	expect(manager.getMarketByWebsocketHost('beta.invalid')).toBeNull();
+	expect(await manager.getMarketsByNames(['Alpha', 'Beta'])).toEqual([alpha]);
+	expect(manager.getMarketsWithWebsocket(['BTC-USDT'])).toEqual([alpha]);
+});
+
 test('cached market lookup ignores name case and returns null for absent names', () => {
 	const alpha = market('Alpha');
 	manager.setMarketsFromDB([alpha]);
