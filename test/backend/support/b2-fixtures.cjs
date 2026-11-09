@@ -29,14 +29,18 @@ const market = (name = 'Alpha') => ({
 	name,
 	website: `https://${name.toLowerCase()}.invalid`,
 	type: 'synthetic exchange',
-	availableTickersToMarketTickers: { 'BTC-USDT': `${name.toLowerCase()}btcusdt` },
 	com: {
 		api: {
 			rest: {
 				base: `https://${name.toLowerCase()}.invalid/`,
 				tickerPath: `ticker/\${ticker}`,
 				pathToPrice: ['data', 'price'],
-				tickerPattern: { separator: '-' },
+				tickerPattern: {
+					separator: '-',
+					baseCurrencyCaseFunction: 'toUpperCase',
+					quoteCurrencyCaseFunction: 'toUpperCase',
+				},
+				tickers: ['BTC-USDT'],
 			},
 			websocket: {
 				host: `${name.toLowerCase()}.invalid`,

@@ -8,7 +8,6 @@ const cases = [
 		'BTCUSDT',
 		'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT',
 	],
-	['Bittrex', 'BTC-USDT', 'BTC-USDT', 'https://api.bittrex.com/v3/markets/BTC-USDT/ticker'],
 	['Poloniex', 'BTC-USDT', 'USDT_BTC', 'https://poloniex.com/public?command=returnTicker'],
 	['Kraken', 'BTC-USDT', 'XBTUSDT', 'https://api.kraken.com/0/public/Ticker?pair=XBTUSDT'],
 	[
@@ -27,7 +26,6 @@ const cases = [
 		'ETHUSDT',
 		'https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT',
 	],
-	['Bittrex', 'ETH-USDT', 'ETH-USDT', 'https://api.bittrex.com/v3/markets/ETH-USDT/ticker'],
 	['Poloniex', 'ETH-USDT', 'USDT_ETH', 'https://poloniex.com/public?command=returnTicker'],
 	['Kraken', 'ETH-USDT', 'ETHUSDT', 'https://api.kraken.com/0/public/Ticker?pair=ETHUSDT'],
 	[

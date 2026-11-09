@@ -1,5 +1,6 @@
 const axios = require('axios');
 const client = require('../../../marketRestClient');
+const marketHelper = require('../../../marketHelper');
 const { market, controlAxios, now } = require('../support/b2-fixtures.cjs');
 const legacy = require('../support/legacy-rest.cjs');
 const { MARKETS } = require('../../testHelper');
@@ -36,7 +37,7 @@ test.each(legacy.cases)(
 		const config = MARKETS.find(value => value.name === name);
 		const result = await client.getMarketPrice(
 			config,
-			config.availableTickersToMarketTickers[ticker]
+			marketHelper.getMarketPairCurrency(config, 'rest', ticker)
 		);
 		expect({ calls: transport.calls, result }).toEqual({
 			calls: [{ method: 'get', url }],

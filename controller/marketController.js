@@ -46,7 +46,10 @@ const isValidMarketAndTicker = (market, ticker, next) => {
 		return false;
 	}
 
-	const marketTicker = marketFound.availableTickersToMarketTickers[ticker.toUpperCase()];
+	const marketTicker =
+		marketFound.com.api.rest &&
+		marketFound.com.api.rest.tickers &&
+		marketFound.com.api.rest.tickers.includes(ticker.toUpperCase());
 	if (!marketTicker) {
 		next(errorHelper.errors.NOT_FOUND(`ticker ${ticker} not found`));
 	}
@@ -72,16 +75,18 @@ exports.getTickerByMarket = (request, response, next) => {
 
 const isValidMarketRequest = market => {
 	const availableRestTickers = marketsDBmanager.getAllAvailableTickerNamesByApi('rest');
-	const availableTickersToMarketTickers = Object.keys(market.availableTickersToMarketTickers);
-	const tickerNotFound = availableTickersToMarketTickers.some(
-		incomingTicker => !availableRestTickers.includes(incomingTicker)
-	);
+	const marketTickers =
+		market.com && market.com.api && market.com.api.rest && market.com.api.rest.tickers;
+	const tickerNotFound =
+		marketTickers &&
+		marketTickers.some(incomingTicker => !availableRestTickers.includes(incomingTicker));
 	return (
 		market &&
 		!tickerNotFound &&
 		market.name &&
-		market.availableTickersToMarketTickers &&
-		Object.keys(market.availableTickersToMarketTickers).length > 0 &&
+		marketTickers &&
+		marketTickers.length > 0 &&
+		market.com.api.rest.tickerPattern &&
 		market.com &&
 		market.com.api &&
 		market.com.api.rest &&

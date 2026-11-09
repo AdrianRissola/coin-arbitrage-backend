@@ -13,12 +13,7 @@ const leases = [];
 const defaultMarkets = () =>
 	['Alpha', 'Beta', 'Gamma'].map(name => {
 		const record = market(name);
-		record.availableTickersToMarketTickers = {
-			'BTC-USDT': 'BTC-USDT',
-			'BTC-USD': 'BTC-USD',
-			'ETH-USDT': 'ETH-USDT',
-			'ETH-USD': 'ETH-USD',
-		};
+		record.com.api.rest.tickers = ['BTC-USDT', 'BTC-USD', 'ETH-USDT', 'ETH-USD'];
 		return record;
 	});
 const loadHttpApp = async (options = {}) => {

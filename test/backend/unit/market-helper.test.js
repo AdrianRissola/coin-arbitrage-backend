@@ -56,7 +56,7 @@ test.each([
 	expect(helper.getMarketPairCurrency(market(changes), 'websocket', 'BTC-USDT')).toBe(expected);
 });
 
-test('REST conversion currently reads symbol aliases from WebSocket configuration', () => {
+test('REST conversion reads symbol aliases from the REST configuration', () => {
 	const input = market();
 	input.com.api.rest = {
 		...input.com.api.rest,
@@ -72,7 +72,7 @@ test('REST conversion currently reads symbol aliases from WebSocket configuratio
 			currencies: [{ symbol: 'BTC', marketSymbol: 'XBT' }],
 		},
 	};
-	expect(helper.getMarketPairCurrency(input, 'rest', 'BTC-USDT')).toBe('XBT-USDT');
+	expect(helper.getMarketPairCurrency(input, 'rest', 'BTC-USDT')).toBe('RESTBTC-USDT');
 });
 
 test('quote-first conversion precedes separator normalization', () => {

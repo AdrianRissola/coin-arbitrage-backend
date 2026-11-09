@@ -1,4 +1,4 @@
-const { loadHttpApp, defaultMarkets } = require('../support/http-app.cjs');
+const { loadHttpApp } = require('../support/http-app.cjs');
 const golden = require('../../fixtures/contracts/v1/arbitrages.json');
 const errors = require('../../fixtures/contracts/v1/errors.json');
 const { clone, now } = require('../support/b2-fixtures.cjs');
@@ -48,19 +48,12 @@ test('GET all market tickers maps real adapter bodies by their market names', as
 });
 
 test('GET all prices sorts numeric values and exposes current native ticker field', async () => {
-	const markets = defaultMarkets().map(record => ({
-		...record,
-		availableTickersToMarketTickers: {
-			...record.availableTickersToMarketTickers,
-			'BTC-USDT': `${record.name.toLowerCase()}btcusdt`,
-		},
-	}));
-	const context = await loadHttpApp({ markets, exchange: plans([125, 80, 100]) });
+	const context = await loadHttpApp({ exchange: plans([125, 80, 100]) });
 	const response = await context.api.get(`${base}/markets/tickers/btc-usdt/prices`).expect(200);
 	expect(normalized(response.body)).toEqual([
-		{ platform: 'Beta', ticker: 'betabtcusdt', price: 80, date: now },
-		{ platform: 'Gamma', ticker: 'gammabtcusdt', price: 100, date: now },
-		{ platform: 'Alpha', ticker: 'alphabtcusdt', price: 125, date: now },
+		{ platform: 'Beta', ticker: 'BTC-USDT', price: 80, date: now },
+		{ platform: 'Gamma', ticker: 'BTC-USDT', price: 100, date: now },
+		{ platform: 'Alpha', ticker: 'BTC-USDT', price: 125, date: now },
 	]);
 });
 

@@ -26,9 +26,7 @@ test.each(['getAllMarkets', 'getAllMarketTickers'])(
 	async action => {
 		const context = await loadHttpApp({ listen: false });
 		context.manager.setMarketsFromDB(
-			action === 'getAllMarkets'
-				? [null]
-				: [{ name: 'Broken', availableTickersToMarketTickers: {} }]
+			action === 'getAllMarkets' ? [null] : [{ name: 'Broken' }]
 		);
 		const output = response();
 		const next = jest.fn();
@@ -64,8 +62,18 @@ test.each(['save', 'validation'])(
 	}
 );
 
+test('raw controller missing market tickers forwards BAD_REQUEST through next', async () => {
+	const context = await loadHttpApp({ listen: false });
+	const output = response();
+	const next = jest.fn();
+	await context.controllers.market.saveMarket({ body: {} }, output, next);
+	expect(output.json).not.toHaveBeenCalled();
+	expect(next).toHaveBeenCalledWith(
+		expect.objectContaining({ code: 400, message: 'BAD REQUEST' })
+	);
+});
+
 test.each([
-	['market map', 'market', 'saveMarket', {}, /Cannot convert undefined or null to object/],
 	['currency symbol', 'market', 'saveCurrency', {}, /length/],
 	['WebSocket tickers', 'websocket', 'connectWebsocketClient', { action: 'open' }, /some/],
 ])(
@@ -128,7 +136,7 @@ test.each([
 		undefined,
 		context => context.manager.setMarketsFromDB([null]),
 	],
-	['post', '/markets', {}, () => {}],
+	['post', '/markets', {}, () => {}, 400],
 	['post', '/currency', {}, () => {}],
 	['post', '/markets/tickers/websockets', { action: 'open' }, () => {}],
 	[
@@ -145,7 +153,7 @@ test.each([
 	],
 ])(
 	'%s %s completes a real JSON error response instead of hanging',
-	async (method, path, body, prepare) => {
+	async (method, path, body, prepare, status = 500) => {
 		const context = await loadHttpApp();
 		prepare(context);
 		const request = context.api[method](`${base}${path}`).timeout({
@@ -153,7 +161,7 @@ test.each([
 			deadline: 2000,
 		});
 		if (body !== undefined) request.send(body);
-		const result = await request.expect(500);
+		const result = await request.expect(status);
 		expect(result.type).toBe('application/json');
 	}
 );

@@ -3,6 +3,7 @@ const axios = require('axios');
 const Market = require('../../../model/Market');
 const manager = require('../../../marketsDBmanager');
 const service = require('../../../service/marketService');
+const marketHelper = require('../../../marketHelper');
 const { MARKETS } = require('../../testHelper');
 const seed = require('../../fixtures/contracts/v1/seed.json');
 const legacy = require('../support/legacy-rest.cjs');
@@ -34,9 +35,8 @@ test.each(legacy.cases)(
 			service.getTickerByMarket(name.toLowerCase(), ticker.toLowerCase())
 		).resolves.toEqual(legacy.bodies[name]);
 		expect(transport.calls).toEqual([{ method: 'get', url }]);
-		expect(
-			MARKETS.find(value => value.name === name).availableTickersToMarketTickers[ticker]
-		).toBe(native);
+		const config = MARKETS.find(value => value.name === name);
+		expect(marketHelper.getMarketPairCurrency(config, 'rest', ticker)).toBe(native);
 	}
 );
 
@@ -68,7 +68,7 @@ test('all-ticker aggregation maps actual responses by market and keeps missing m
 
 test('all-ticker aggregation rejects when one native mapping returns null', async () => {
 	const beta = market('Beta');
-	beta.availableTickersToMarketTickers = {};
+	beta.com.api.rest.tickers = [];
 	manager.setMarketsFromDB([market(), beta]);
 	transport = controlAxios(axios, [{ data: { price: 80 } }]);
 	await expect(service.getAllMarketTickers('BTC-USDT')).rejects.toThrow(TypeError);
@@ -88,7 +88,7 @@ test('unknown single-market lookup retains its TypeError and makes no HTTP reque
 
 test('all-price lookup filters missing mappings and sorts real extracted numeric prices', async () => {
 	const missing = market('Missing');
-	missing.availableTickersToMarketTickers = {};
+	missing.com.api.rest.tickers = [];
 	manager.setMarketsFromDB([market('Zulu'), market('Alpha'), market('Middle'), missing]);
 	transport = controlAxios(axios, [
 		{ data: { price: '125' } },
@@ -97,9 +97,9 @@ test('all-price lookup filters missing mappings and sorts real extracted numeric
 	]);
 	const result = await service.getAllPricesByTicker('btc-usdt');
 	expect(result).toEqual([
-		{ platform: 'Alpha', ticker: 'alphabtcusdt', price: 80, date: new Date(now) },
-		{ platform: 'Middle', ticker: 'middlebtcusdt', price: 100, date: new Date(now) },
-		{ platform: 'Zulu', ticker: 'zulubtcusdt', price: 125, date: new Date(now) },
+		{ platform: 'Alpha', ticker: 'BTC-USDT', price: 80, date: new Date(now) },
+		{ platform: 'Middle', ticker: 'BTC-USDT', price: 100, date: new Date(now) },
+		{ platform: 'Zulu', ticker: 'BTC-USDT', price: 125, date: new Date(now) },
 	]);
 });
 
@@ -122,7 +122,7 @@ test('default prices select REST-capable markets and omit resolved null prices',
 	const noRest = market('NoRest');
 	delete noRest.com.api.rest;
 	const missing = market('Missing');
-	missing.availableTickersToMarketTickers = {};
+	missing.com.api.rest.tickers = [];
 	manager.setMarketsFromDB([market(), noRest, missing]);
 	transport = controlAxios(axios, [{ data: { price: '80' } }]);
 	const result = await service.getMarketPrices(null, 'BTC-USDT');
