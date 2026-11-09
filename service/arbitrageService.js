@@ -60,8 +60,10 @@ const calculateArbitrages = (
 						best = buildArbitrage(sortedList[i], sortedList[j]);
 				}
 			}
-			arbitrages.push(best || buildArbitrage(sortedList[0], sortedList[sortedList.length - 1]));
-			logHelper.logArbitrage(arbitrages[0]);
+			if (best) {
+				arbitrages.push(best);
+				logHelper.logArbitrage(arbitrages[0]);
+			}
 		} else {
 			for (let i = 0; i < sortedList.length; i += 1) {
 				for (let j = i + 1; j < sortedList.length; j += 1) {

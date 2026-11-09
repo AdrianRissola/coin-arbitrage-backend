@@ -62,7 +62,7 @@ test('stream DTO uses real helpers: uppercase key, nonzero prices and even a dis
 		'BTC-USDT': [
 			{ market: 'Alpha', price: 80 },
 			{ market: 'Beta', price: 125 },
-			{ market: 'Offline', price: 1000 },
+			{ market: 'Offline', price: 1000, connected: false },
 		],
 	});
 });
@@ -76,7 +76,7 @@ test('single-ticker channel calculates literal profits from connected quotes, no
 			'BTC-USDT': [
 				{ market: 'Alpha', price: 80 },
 				{ market: 'Beta', price: 125 },
-				{ market: 'Offline', price: 1000 },
+				{ market: 'Offline', price: 1000, connected: false },
 			],
 		},
 		arbitrages: { 'BTC-USDT': { 'Alpha-Beta': expectedArbitrage } },
@@ -201,7 +201,7 @@ test('best channel groups one real top-profit result per quote and persists both
 		'BTC-USDT': [
 			{ market: 'Alpha', price: 80 },
 			{ market: 'Beta', price: 125 },
-			{ market: 'Offline', price: 1000 },
+			{ market: 'Offline', price: 1000, connected: false },
 		],
 	});
 	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledTimes(2);
