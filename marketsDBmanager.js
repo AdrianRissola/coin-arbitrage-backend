@@ -1,4 +1,5 @@
 const Market = require('./model/Market');
+const marketHelper = require('./marketHelper');
 
 let marketsFromDB = null;
 let availableTickers = null;
@@ -101,28 +102,20 @@ exports.loadMarketsFromDB = async () => {
 };
 
 exports.getMarketTickerName = (marketName, ticker) => {
-	let markets = null;
-	if (!marketsFromDB) {
-		Market.find({}).then(result => {
-			console.log('no markets from db, reloaded: ', result);
-			// mongoose.connection.close
-			markets =
-				getMarketByName(marketName).availableTickersToMarketTickers[ticker.toUpperCase()];
-		});
-	} else {
-		markets = getMarketByName(marketName).availableTickersToMarketTickers[ticker.toUpperCase()];
-	}
-	return markets;
+	const market = getMarketByName(marketName);
+	if (!market.com.api.rest.tickers.includes(ticker.toUpperCase())) return undefined;
+	return marketHelper.getMarketPairCurrency(market, 'rest', ticker.toUpperCase());
 };
 
 exports.getAllMarkets = api => marketsFromDB.filter(market => supports(market, api) || !api);
 
 exports.getAllMarketsByTicker = ticker => {
-	const markets = [];
-	for (let i = 0; i < marketsFromDB.length; i += 1) {
-		if (marketsFromDB[i].availableTickersToMarketTickers[ticker.toUpperCase()])
-			markets.push(marketsFromDB[i]);
-	}
+	const markets = marketsFromDB.filter(
+		market =>
+			market.com.api.rest &&
+			market.com.api.rest.tickers &&
+			market.com.api.rest.tickers.includes(ticker.toUpperCase())
+	);
 	console.log('getAllMarketsByTicker ', ticker, markets);
 	return markets;
 };

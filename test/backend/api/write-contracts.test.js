@@ -16,14 +16,14 @@ test('POST market uses the real validation/service/schema path and JSON document
 	expect(response.body).toMatchObject({
 		name: 'New',
 		type: 'synthetic exchange',
-		availableTickersToMarketTickers: { 'BTC-USDT': 'newbtcusdt' },
 	});
+	expect(response.body.com.api.rest.tickers).toEqual(['BTC-USDT']);
 	const { _id: id } = response.body;
 	expect(id).toMatch(/^[a-f0-9]{24}$/);
 	expect(response.body.ignored).toBeUndefined();
 	expect(context.Market.find).toHaveBeenCalledTimes(3);
 	expect(context.transport.calls).toEqual([
-		{ method: 'get', url: 'https://new.invalid/ticker/newbtcusdt' },
+		{ method: 'get', url: 'https://new.invalid/ticker/BTC-USDT' },
 	]);
 });
 
@@ -32,8 +32,8 @@ test.each([
 	['empty name', ['name'], ''],
 	['without API/rest data', ['com'], {}],
 	['without https', ['com', 'api', 'rest', 'base'], 'http://new.invalid/'],
-	['without tickers', ['availableTickersToMarketTickers'], {}],
-	['invalid app ticker', ['availableTickersToMarketTickers'], { MISSING: 'native' }],
+	['without tickers', ['com', 'api', 'rest', 'tickers'], []],
+	['invalid app ticker', ['com', 'api', 'rest', 'tickers'], ['MISSING']],
 	['empty extraction path', ['com', 'api', 'rest', 'pathToPrice'], []],
 	['missing extraction path', ['com', 'api', 'rest', 'pathToPrice'], undefined],
 ])(
@@ -54,38 +54,37 @@ test.each([
 	}
 );
 
-test('POST market does not validate a native ticker alias if its controlled price resolves', async () => {
+test('POST market probes the exchange with the derived native ticker', async () => {
 	const context = await loadHttpApp({ exchange: price() });
 	const payload = market('New');
-	payload.availableTickersToMarketTickers['BTC-USDT'] = 'WRONG_NATIVE';
+	payload.com.api.rest.tickerPattern = {
+		separator: '',
+		baseCurrencyCaseFunction: 'toLowerCase',
+		quoteCurrencyCaseFunction: 'toLowerCase',
+	};
 	context.planSave('Market');
-	const response = await context.api.post(`${base}/markets`).send(payload).expect(200);
-	expect(response.body.availableTickersToMarketTickers['BTC-USDT']).toBe('WRONG_NATIVE');
-	expect(context.transport.calls[0].url).toBe('https://new.invalid/ticker/WRONG_NATIVE');
+	await context.api.post(`${base}/markets`).send(payload).expect(200);
+	expect(context.transport.calls[0].url).toBe('https://new.invalid/ticker/btcusdt');
 });
 
-test.each(['invalid market path', 'invalid native alias'])(
-	'POST market %s surfaces a controlled HTTP upstream error as 400',
-	async name => {
-		const context = await loadHttpApp({
-			exchange: [
-				{
-					error: Object.assign(new Error('B3 upstream rejected'), {
-						response: { status: 404 },
-					}),
-				},
-			],
-		});
-		const payload = market('New');
-		if (name === 'invalid market path') payload.com.api.rest.tickerPath = `missing/\${ticker}`;
-		else payload.availableTickersToMarketTickers['BTC-USDT'] = 'WRONG_NATIVE';
-		const response = await context.api.post(`${base}/markets`).send(payload).expect(400);
-		expect(response.body.error).toMatchObject({ code: 400, message: 'BAD REQUEST' });
-		expect(response.body.error.description).toContain(
-			'B3 upstream rejected when: GET https://new.invalid/'
-		);
-	}
-);
+test('POST market invalid market path surfaces a controlled HTTP upstream error as 400', async () => {
+	const context = await loadHttpApp({
+		exchange: [
+			{
+				error: Object.assign(new Error('B3 upstream rejected'), {
+					response: { status: 404 },
+				}),
+			},
+		],
+	});
+	const payload = market('New');
+	payload.com.api.rest.tickerPath = `missing/\${ticker}`;
+	const response = await context.api.post(`${base}/markets`).send(payload).expect(400);
+	expect(response.body.error).toMatchObject({ code: 400, message: 'BAD REQUEST' });
+	expect(response.body.error.description).toContain(
+		'B3 upstream rejected when: GET https://new.invalid/'
+	);
+});
 
 test('POST market invalid-host setup failure retains 500, not the legacy assumed 400', async () => {
 	const context = await loadHttpApp({

@@ -12,13 +12,18 @@ const available = require('../../fixtures/contracts/v1/available-tickers.json');
 const clone = value => JSON.parse(JSON.stringify(value));
 const market = name => ({
 	name,
-	availableTickersToMarketTickers: { 'BTC-USDT': 'nativeBTCUSDT' },
 	com: {
 		api: {
 			rest: {
 				base: `https://${name.toLowerCase()}.invalid/`,
 				tickerPath: 'ticker',
 				pathToPrice: [],
+				tickerPattern: {
+					separator: '',
+					baseCurrencyCaseFunction: 'toLowerCase',
+					quoteCurrencyCaseFunction: 'toLowerCase',
+				},
+				tickers: ['BTC-USDT'],
 			},
 			websocket: {
 				host: `${name.toLowerCase()}.invalid`,
@@ -174,7 +179,7 @@ test('WebSocket host lookup ignores case', () => {
 
 test('native ticker lookup uppercases app tickers without changing native values', () => {
 	manager.setMarketsFromDB([market('Alpha')]);
-	expect(manager.getMarketTickerName('alpha', 'btc-usdt')).toBe('nativeBTCUSDT');
+	expect(manager.getMarketTickerName('alpha', 'btc-usdt')).toBe('btcusdt');
 	expect(manager.getMarketTickerName('alpha', 'ETH-USDT')).toBeUndefined();
 	expect(() => manager.getMarketTickerName('missing', 'BTC-USDT')).toThrow(TypeError);
 });

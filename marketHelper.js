@@ -48,11 +48,11 @@ exports.getMarketPairCurrency = (market, api, pairCurrency) => {
 	const isQuoteCurrencyFirst = market.com.api[api].tickerPattern.quoteCurrencyFirst;
 	const fixedPairCurrency = reversePairCurrency(pairCurrency, isQuoteCurrencyFirst);
 	let [base, quote] = fixedPairCurrency.split('-');
-	const baseMarketSymbol = market.com.api.websocket.tickerPattern.currencies?.filter(
+	const baseMarketSymbol = market.com.api[api].tickerPattern.currencies?.filter(
 		currency => currency.symbol === base
 	)[0]?.marketSymbol;
 
-	const quoteMarketSymbol = market.com.api.websocket.tickerPattern.currencies?.filter(
+	const quoteMarketSymbol = market.com.api[api].tickerPattern.currencies?.filter(
 		currency => currency.symbol === quote
 	)[0]?.marketSymbol;
 

@@ -1,4 +1,5 @@
 const marketsDBmanager = require('../marketsDBmanager');
+const marketHelper = require('../marketHelper');
 const marketRestClient = require('../marketRestClient');
 const dtoConverter = require('../dtoConverter');
 const Market = require('../model/Market');
@@ -38,7 +39,7 @@ const getAllPricesByTicker = async ticker => {
 	markets.forEach(market => {
 		const marketPrice = marketRestClient.getMarketPrice(
 			market,
-			market.availableTickersToMarketTickers[ticker.toUpperCase()]
+			marketHelper.getMarketPairCurrency(market, 'rest', ticker.toUpperCase())
 		);
 		marketPrices.push(marketPrice);
 	});
@@ -50,12 +51,15 @@ const getAllPricesByTicker = async ticker => {
 };
 
 const saveNewMarket = async newMarket => {
-	const marketTickerNames = newMarket.availableTickersToMarketTickers;
-
 	const marketPrices = [];
-	Object.keys(marketTickerNames).forEach(ticker => {
+	newMarket.com.api.rest.tickers.forEach(ticker => {
 		marketPrices.push(
-			marketPrices.push(marketRestClient.getMarketPrice(newMarket, marketTickerNames[ticker]))
+			marketPrices.push(
+				marketRestClient.getMarketPrice(
+					newMarket,
+					marketHelper.getMarketPairCurrency(newMarket, 'rest', ticker)
+				)
+			)
 		);
 	});
 	await Promise.all(marketPrices);
@@ -82,10 +86,13 @@ const getMarketPrices = async (marketNames, ticker) => {
 	let marketPrices = [];
 
 	markets.forEach(market => {
-		const marketPrice = marketRestClient.getMarketPrice(
-			market,
-			market.availableTickersToMarketTickers[ticker.toUpperCase()]
-		);
+		const marketPrice =
+			market.com.api.rest.tickers &&
+			market.com.api.rest.tickers.includes(ticker.toUpperCase()) &&
+			marketRestClient.getMarketPrice(
+				market,
+				marketHelper.getMarketPairCurrency(market, 'rest', ticker.toUpperCase())
+			);
 		if (marketPrice) marketPrices.push(marketPrice);
 	});
 

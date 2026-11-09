@@ -82,6 +82,7 @@ const restSchema = new mongoose.Schema({
 	tickerPattern: tickerPatternSchema,
 	tickerPath: String,
 	pathToPrice: [],
+	tickers: [],
 });
 
 const apiSchema = new mongoose.Schema({
