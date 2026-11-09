@@ -1,7 +1,13 @@
-const toMarketPriceStreamDto = (marketTickerStream, ticker) => ({
-	market: marketTickerStream.data.market.name,
-	price: marketTickerStream.data.tickerPrices[ticker.toUpperCase()],
-});
+const toMarketPriceStreamDto = (marketTickerStream, ticker) => {
+	const quote = marketTickerStream.data.tickerPrices[ticker.toUpperCase()];
+	const scalar = quote && typeof quote === 'object' ? quote : { price: quote };
+	return {
+		market: marketTickerStream.data.market.name,
+		price: scalar.last || scalar.ask || scalar.bid || scalar.price,
+		...(scalar.bid && { bid: scalar.bid }),
+		...(scalar.ask && { ask: scalar.ask }),
+	};
+};
 
 exports.toMarketPricesStreamDto = (marketTickersStream, ticker) => {
 	const marketTickersStreamDto = [];

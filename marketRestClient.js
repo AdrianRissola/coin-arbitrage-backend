@@ -55,18 +55,29 @@ const getMarketPrice = async (market, marketTickerName) => {
 	if (market && marketTickerName) {
 		const result = await getTickerByMarket(market, marketTickerName);
 		if (result) {
+			const extract = path =>
+				path && path.length
+					? marketRestClientResultHandler.extractNumberFromTarget(path, result, {
+							marketTickerName,
+							tickerSeparator: getTickerSeparator(market),
+							valueType: 'number',
+						})
+					: null;
+			const tryExtract = path => {
+				try {
+					return extract(path);
+				} catch (error) {
+					return null;
+				}
+			};
+			const bid = tryExtract(market.com.api.rest.pathToBidPrice);
+			const ask = tryExtract(market.com.api.rest.pathToAskPrice);
 			marketPrice = {
 				platform: market.name,
 				ticker: marketTickerName,
-				price: marketRestClientResultHandler.extractNumberFromTarget(
-					market.com.api.rest.pathToPrice,
-					result,
-					{
-						marketTickerName,
-						tickerSeparator: getTickerSeparator(market),
-						valueType: 'number',
-					}
-				),
+				price: extract(market.com.api.rest.pathToPrice),
+				...(bid !== null && { bid }),
+				...(ask !== null && { ask }),
 				date: new Date(),
 			};
 			console.log({ marketPrice });

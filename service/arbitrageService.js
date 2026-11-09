@@ -6,23 +6,32 @@ const percentage = (num1, num2) => {
 	return (100 * dif) / num2;
 };
 
+const buyPrice = marketPrice =>
+	marketPrice.ask === null || marketPrice.ask === undefined
+		? marketPrice.price
+		: marketPrice.ask;
+const sellPrice = marketPrice =>
+	marketPrice.bid === null || marketPrice.bid === undefined
+		? marketPrice.price
+		: marketPrice.bid;
+
 const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 	transactions: [
 		{
 			type: 'BUY',
 			market: marketPriceI.platform,
 			pair: marketPriceI.ticker,
-			price: marketPriceI.price,
+			price: buyPrice(marketPriceI),
 		},
 		{
 			type: 'SELL',
 			market: marketPriceJ.platform,
 			pair: marketPriceJ.ticker,
-			price: marketPriceJ.price,
+			price: sellPrice(marketPriceJ),
 		},
 	],
-	profitPerUnit: marketPriceJ.price - marketPriceI.price,
-	profitPercentage: percentage(marketPriceI.price, marketPriceJ.price),
+	profitPerUnit: sellPrice(marketPriceJ) - buyPrice(marketPriceI),
+	profitPercentage: percentage(buyPrice(marketPriceI), sellPrice(marketPriceJ)),
 	date: new Date(),
 });
 
@@ -39,19 +48,30 @@ const calculateArbitrages = (
 	let arbitrages = null;
 	const ticker = marketPrices && marketPrices[0] ? marketPrices[0].ticker : null;
 	if (marketPrices && marketPrices.length > 1) {
-		const sortedList = marketPrices.sort((e1, e2) => e1.price - e2.price);
+		const sortedList = marketPrices.sort((e1, e2) => buyPrice(e1) - buyPrice(e2));
 
 		arbitrages = [];
 		if (top === 1) {
-			arbitrages.push(buildArbitrage(sortedList[0], sortedList[sortedList.length - 1]));
+			let best = null;
+			for (let i = 0; i < sortedList.length; i += 1) {
+				for (let j = i + 1; j < sortedList.length; j += 1) {
+					const profit = sellPrice(sortedList[j]) - buyPrice(sortedList[i]);
+					if (profit > 0 && (!best || profit > best.profitPerUnit))
+						best = buildArbitrage(sortedList[i], sortedList[j]);
+				}
+			}
+			arbitrages.push(best || buildArbitrage(sortedList[0], sortedList[sortedList.length - 1]));
 			logHelper.logArbitrage(arbitrages[0]);
 		} else {
 			for (let i = 0; i < sortedList.length; i += 1) {
 				for (let j = i + 1; j < sortedList.length; j += 1) {
-					const profitPercentage = percentage(sortedList[i].price, sortedList[j].price);
+					const profitPercentage = percentage(
+						buyPrice(sortedList[i]),
+						sellPrice(sortedList[j])
+					);
 					if (
 						(!minProfitPercentage || profitPercentage >= minProfitPercentage) &&
-						currentPriceComparator(sortedList[i].price, sortedList[j].price)
+						currentPriceComparator(buyPrice(sortedList[i]), sellPrice(sortedList[j]))
 					)
 						arbitrages.push(buildArbitrage(sortedList[i], sortedList[j]));
 				}

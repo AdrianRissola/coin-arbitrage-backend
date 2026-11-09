@@ -45,12 +45,19 @@ const getAllArbitrages = async filters => {
 	if (allMarketTickersStream) {
 		Object.keys(allMarketTickersStream).forEach(host => {
 			if (allMarketTickersStream[host].connected) {
-				const price =
+				const stored =
 					allMarketTickersStream[host].data.tickerPrices[filters.ticker.toUpperCase()];
-				if (price)
+				const quote = stored && typeof stored === 'object' ? stored : { price: stored };
+				const ttl = allMarketTickersStream[host].data.market.com?.api?.websocket?.quoteTtlMs;
+				if (
+					stored &&
+					(!ttl || !quote.timestamp || Date.now() - quote.timestamp <= ttl)
+				)
 					marketPrices.push({
 						platform: allMarketTickersStream[host].data.market.name,
-						price,
+						bid: quote.bid,
+						ask: quote.ask,
+						price: quote.last !== null && quote.last !== undefined ? quote.last : quote.price,
 						ticker: filters.ticker.toUpperCase(),
 					});
 			}
