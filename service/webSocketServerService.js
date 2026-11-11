@@ -94,7 +94,9 @@ const getBestArbitrage = async () => {
 
 	arbitragesList = await Promise.all(arbitragesList);
 
-	arbitragesList = arbitragesList.filter(arbit => arbit).map(arbits => arbits[0]);
+	arbitragesList = arbitragesList
+		.filter(tickerArbitrages => Array.isArray(tickerArbitrages) && tickerArbitrages.length > 0)
+		.map(tickerArbitrages => tickerArbitrages[0]);
 	let quoteCurrencyBestArbitrageList = [];
 	if (arbitragesList && arbitragesList.length > 0) {
 		const quoteCurrencies = marketsDBmanager.getAvailableCurrenciesByType('quote');

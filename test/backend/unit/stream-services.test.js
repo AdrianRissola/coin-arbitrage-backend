@@ -207,6 +207,47 @@ test('best channel groups one real top-profit result per quote and persists both
 	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledTimes(2);
 });
 
+test('best channel skips tickers with no profitable spread while retaining profitable quotes', async () => {
+	const data = stream();
+	data.alpha.data.tickerPrices['BTC-USDT'] = {
+		bid: 99,
+		ask: 100,
+		last: 99.5,
+		timestamp: Date.now(),
+	};
+	data.beta.data.tickerPrices['BTC-USDT'] = {
+		bid: 100,
+		ask: 101,
+		last: 100.5,
+		timestamp: Date.now(),
+	};
+	client.getAllMarketTickerStream.mockReturnValue(data);
+
+	const result = await server.getArbitrageChannelInfo('ALL');
+
+	expect(
+		result.bestArbitrages.arbitragesData.map(row => row.arbitrage.transactions[0].pair)
+	).toEqual(['ETH-USD']);
+	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledTimes(1);
+});
+
+test('best channel returns an empty envelope when connected markets have no profitable spreads', async () => {
+	const data = stream();
+	data.alpha.data.tickerPrices['BTC-USDT'] = { bid: 99, ask: 100, last: 99.5 };
+	data.beta.data.tickerPrices['BTC-USDT'] = { bid: 100, ask: 101, last: 100.5 };
+	data.alpha.data.tickerPrices['ETH-USD'] = { bid: 79, ask: 80, last: 79.5 };
+	data.beta.data.tickerPrices['ETH-USD'] = { bid: 80, ask: 81, last: 80.5 };
+	client.getAllMarketTickerStream.mockReturnValue(data);
+
+	await expect(server.getArbitrageChannelInfo('ALL')).resolves.toEqual({
+		ticker: 'ALL',
+		channel: 'bestArbitrage',
+		bestArbitrages: { arbitragesData: [] },
+		message: 'No arbitrage available for: ALL',
+	});
+	expect(arbitrage.saveMaxProfitArbitrageByTicker).not.toHaveBeenCalled();
+});
+
 test.each([0, 1])('best channel awaits both saves when save %s finishes first', async first => {
 	const consumed = [deferred(), deferred()];
 	const saves = [deferred(), deferred()];
