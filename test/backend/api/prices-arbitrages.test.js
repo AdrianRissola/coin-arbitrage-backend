@@ -103,9 +103,11 @@ test('GET current requested subset retains actual market inclusion and complete 
 
 test.each([
 	['20', undefined, [0, 1, 2]],
-	['20.001', undefined, [0]],
-	['36', undefined, [0]],
-	['36.001', undefined, []],
+	['20.001', undefined, [0, 1, 2]],
+	['25', undefined, [0, 1, 2]],
+	['25.001', undefined, [0]],
+	['56.25', undefined, [0]],
+	['56.251', undefined, []],
 	['100', '1', [0]],
 	[undefined, '2', [0, 1]],
 	[undefined, '3', [0, 1, 2]],

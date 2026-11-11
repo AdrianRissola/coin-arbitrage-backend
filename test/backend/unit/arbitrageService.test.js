@@ -43,10 +43,10 @@ test.each([[undefined], [null], [[]], [[prices['BTC-USDT'][0]]]])(
 test.each([
 	[undefined, [45, 25, 20]],
 	[0, [45, 25, 20]],
-	[20, [45, 25, 20]],
-	[20.001, [45]],
-	[36, [45]],
-	[36.001, []],
+	[25, [45, 25, 20]],
+	[25.001, [45]],
+	[56.25, [45]],
+	[56.251, []],
 ])('minimum percentage %s keeps exact inclusive boundaries', (minimum, profits) => {
 	expect(calculateArbitrages(inputs(), minimum).map(value => value.profitPerUnit)).toEqual(
 		profits
@@ -116,7 +116,7 @@ test('one-sided quotes use Ask to buy and Bid to sell, with profit relative to t
 		['BUY', 'Alpha', 100],
 		['SELL', 'Beta', 105],
 	]);
-	expect([result.profitPerUnit, result.profitPercentage]).toEqual([5, (100 * 5) / 105]);
+	expect([result.profitPerUnit, result.profitPercentage]).toEqual([5, 5]);
 });
 
 test('the formatter receives actual results and the input ticker', () => {

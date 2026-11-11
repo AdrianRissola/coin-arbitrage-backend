@@ -42,7 +42,7 @@ test('real handler, exchange parser, DTO/calculation and service serialize the s
 	await app.clock.run(timer);
 	expect(normaliseDates(await response)).toEqual(arbitrage);
 	expect(app.saved).toHaveLength(1);
-	expect(app.saved[0].document.profitPercentage).toBe(36);
+	expect(app.saved[0].document.profitPercentage).toBe(56.25);
 });
 test('lowercase ticker is echoed while actual pair keys and financial transactions are uppercase', async () => {
 	const app = await loadWire();
@@ -155,8 +155,8 @@ test('best per quote uses real services and save triggers through native seriali
 			record.arbitrage.profitPercentage,
 		])
 	).toEqual([
-		['BTC-USDT', 45, 36],
-		['ETH-USD', 30, 37.5],
+		['BTC-USDT', 45, 56.25],
+		['ETH-USD', 30, 60],
 	]);
 });
 test('empty best frames preserve the native subscription and later data resumes', async () => {

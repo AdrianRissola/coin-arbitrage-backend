@@ -6,7 +6,7 @@ const buyPrice = marketPrice =>
 	isValidQuotePrice(marketPrice.ask) ? marketPrice.ask : null;
 const sellPrice = marketPrice =>
 	isValidQuotePrice(marketPrice.bid) ? marketPrice.bid : null;
-const percentage = (buyAsk, sellBid) => (100 * (sellBid - buyAsk)) / sellBid;
+const percentage = (buyAsk, sellBid) => (100 * (sellBid - buyAsk)) / buyAsk;
 
 const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 	transactions: [

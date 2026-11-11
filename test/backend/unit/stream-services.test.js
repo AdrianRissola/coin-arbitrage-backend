@@ -48,7 +48,7 @@ const expectedArbitrage = {
 		{ type: 'SELL', market: 'Beta', pair: 'BTC-USDT', price: 125 },
 	],
 	profitPerUnit: 45,
-	profitPercentage: 36,
+	profitPercentage: 56.25,
 	date: new Date(now),
 };
 
@@ -165,9 +165,9 @@ test('three-price stream ordering selects the independent 45/25/20 profit litera
 	expect(
 		Object.values(values).map(value => [value.profitPerUnit, value.profitPercentage])
 	).toEqual([
-		[45, 36],
-		[25, 20],
-		[20, 20],
+		[45, 56.25],
+		[25, 25],
+		[20, 25],
 	]);
 	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledWith(values['Alpha-Gamma']);
 });
@@ -226,8 +226,8 @@ test('best channel groups one real top-profit result per quote and persists both
 			value.arbitrage.profitPercentage,
 		])
 	).toEqual([
-		['BTC-USDT', 45, 36],
-		['ETH-USD', 20, 20],
+		['BTC-USDT', 45, 56.25],
+		['ETH-USD', 20, 25],
 	]);
 	expect(records[0].marketPrices).toEqual({
 		'BTC-USDT': [

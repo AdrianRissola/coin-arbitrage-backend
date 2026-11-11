@@ -88,8 +88,8 @@ test('Arbitrage nested transaction IDs, literal finances and Date survive actual
 			transaction.price,
 		])
 	).toEqual([
-		['BUY', 'RecordBuy', 'ETH-USD', 90],
-		['SELL', 'RecordSell', 'ETH-USD', 100],
+		['BUY', 'RecordBuy', 'ETH-USD', 100],
+		['SELL', 'RecordSell', 'ETH-USD', 110],
 	]);
 	expect(
 		read.transactions.every(({ _id: identifier }) => /^[a-f0-9]{24}$/.test(identifier))

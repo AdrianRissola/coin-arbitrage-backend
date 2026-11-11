@@ -150,8 +150,8 @@ const opportunity = (
 	date = '2024-01-02T03:04:05.000Z'
 ) => ({
 	transactions: [
-		{ type: 'BUY', market: buy, pair: ticker, price: 100 - percentage },
-		{ type: 'SELL', market: sell, pair: ticker, price: 100 },
+		{ type: 'BUY', market: buy, pair: ticker, price: 100 },
+		{ type: 'SELL', market: sell, pair: ticker, price: 100 + percentage },
 	],
 	profitPerUnit: percentage,
 	profitPercentage: percentage,
