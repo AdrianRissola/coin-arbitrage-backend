@@ -68,7 +68,7 @@ nodeTest('a wrong independent financial oracle fails against the real calculator
 	const result = probe('financial-oracle');
 	assert.equal(result.status, 1);
 	assert.equal(result.report.stages[0].failedTests, 1);
-	assert.match(result.stdout + result.stderr, /Received: 36/);
+	assert.match(result.stdout + result.stderr, /Received: 56\.25/);
 });
 
 nodeTest('direct legacy package configuration is blocked before application tests', () => {

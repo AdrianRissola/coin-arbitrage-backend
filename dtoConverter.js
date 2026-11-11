@@ -4,7 +4,7 @@ const toMarketPriceStreamDto = (marketTickerStream, ticker) => {
 	const ttl = marketTickerStream.data.market.com?.api?.websocket?.quoteTtlMs;
 	return {
 		market: marketTickerStream.data.market.name,
-		price: scalar.last || scalar.ask || scalar.bid || scalar.price,
+		price: scalar.last ?? scalar.price ?? null,
 		...(scalar.bid && { bid: scalar.bid }),
 		...(scalar.ask && { ask: scalar.ask }),
 		...(scalar.timestamp && { timestamp: scalar.timestamp }),

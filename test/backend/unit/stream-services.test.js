@@ -14,14 +14,27 @@ const clientService = require('../../../service/webSocketClientService');
 const seed = require('../../fixtures/contracts/v1/seed.json');
 const { market, clone, deferred, now } = require('../support/b2-fixtures.cjs');
 
+const quote = (last, bid, ask) => ({ bid, ask, last });
 const stream = () => ({
 	alpha: {
 		connected: true,
-		data: { market: { name: 'Alpha' }, tickerPrices: { 'BTC-USDT': 80, 'ETH-USD': 80 } },
+		data: {
+			market: { name: 'Alpha' },
+			tickerPrices: {
+				'BTC-USDT': quote(77, 79, 80),
+				'ETH-USD': quote(77, 79, 80),
+			},
+		},
 	},
 	beta: {
 		connected: true,
-		data: { market: { name: 'Beta' }, tickerPrices: { 'BTC-USDT': 125, 'ETH-USD': 100 } },
+		data: {
+			market: { name: 'Beta' },
+			tickerPrices: {
+				'BTC-USDT': quote(130, 125, 126),
+				'ETH-USD': quote(105, 100, 101),
+			},
+		},
 	},
 	offline: {
 		connected: false,
@@ -35,7 +48,7 @@ const expectedArbitrage = {
 		{ type: 'SELL', market: 'Beta', pair: 'BTC-USDT', price: 125 },
 	],
 	profitPerUnit: 45,
-	profitPercentage: 36,
+	profitPercentage: 56.25,
 	date: new Date(now),
 };
 
@@ -60,8 +73,8 @@ afterEach(() => {
 test('stream DTO uses real helpers: uppercase key, nonzero prices and even a disconnected quote', async () => {
 	await expect(server.streamAllMarketPrices('btc-usdt')).resolves.toEqual({
 		'BTC-USDT': [
-			{ market: 'Alpha', price: 80 },
-			{ market: 'Beta', price: 125 },
+			{ market: 'Alpha', price: 77, bid: 79, ask: 80 },
+			{ market: 'Beta', price: 130, bid: 125, ask: 126 },
 			{ market: 'Offline', price: 1000, connected: false },
 		],
 	});
@@ -74,14 +87,36 @@ test('single-ticker channel calculates literal profits from connected quotes, no
 		channel: 'arbitrage',
 		marketPrices: {
 			'BTC-USDT': [
-				{ market: 'Alpha', price: 80 },
-				{ market: 'Beta', price: 125 },
+				{ market: 'Alpha', price: 77, bid: 79, ask: 80 },
+				{ market: 'Beta', price: 130, bid: 125, ask: 126 },
 				{ market: 'Offline', price: 1000, connected: false },
 			],
 		},
 		arbitrages: { 'BTC-USDT': { 'Alpha-Beta': expectedArbitrage } },
 	});
 	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledWith(expectedArbitrage);
+});
+
+test('single-ticker channel keeps Last for display but does not arbitrate with Last-only quotes', async () => {
+	const data = stream();
+	data.alpha.data.tickerPrices['BTC-USDT'] = { last: 80 };
+	data.beta.data.tickerPrices['BTC-USDT'] = { last: 125 };
+	client.getAllMarketTickerStream.mockReturnValue(data);
+
+	await expect(server.getArbitrageChannelInfo('BTC-USDT')).resolves.toEqual({
+		ticker: 'BTC-USDT',
+		channel: 'arbitrage',
+		marketPrices: {
+			'BTC-USDT': [
+				{ market: 'Alpha', price: 80 },
+				{ market: 'Beta', price: 125 },
+				{ market: 'Offline', price: 1000, connected: false },
+			],
+		},
+		arbitrages: null,
+		message: 'No arbitrage available for: BTC-USDT',
+	});
+	expect(arbitrage.saveMaxProfitArbitrageByTicker).not.toHaveBeenCalled();
 });
 
 test('single-ticker persistence is actually awaited before the channel proceeds', async () => {
@@ -118,10 +153,10 @@ test('pair-map keys sort market names without rewriting financial BUY/SELL orien
 
 test('three-price stream ordering selects the independent 45/25/20 profit literals and saves the first', async () => {
 	const data = stream();
-	data.beta.data.tickerPrices['BTC-USDT'] = 100;
+	data.beta.data.tickerPrices['BTC-USDT'] = quote(100, 100, 100);
 	data.gamma = {
 		connected: true,
-		data: { market: { name: 'Gamma' }, tickerPrices: { 'BTC-USDT': 125 } },
+		data: { market: { name: 'Gamma' }, tickerPrices: { 'BTC-USDT': quote(125, 125, 125) } },
 	};
 	client.getAllMarketTickerStream.mockReturnValue(data);
 	const result = await server.getArbitrageChannelInfo('BTC-USDT');
@@ -130,22 +165,19 @@ test('three-price stream ordering selects the independent 45/25/20 profit litera
 	expect(
 		Object.values(values).map(value => [value.profitPerUnit, value.profitPercentage])
 	).toEqual([
-		[45, 36],
-		[25, 20],
-		[20, 20],
+		[45, 56.25],
+		[25, 25],
+		[20, 25],
 	]);
 	expect(arbitrage.saveMaxProfitArbitrageByTicker).toHaveBeenCalledWith(values['Alpha-Gamma']);
 });
 
-test('equal positive stream quotes keep a zero-profit pair under the real <= comparator', async () => {
+test('equal Ask and Bid stream quotes produce no arbitrage', async () => {
 	const data = stream();
-	data.beta.data.tickerPrices['BTC-USDT'] = 80;
+	data.beta.data.tickerPrices['BTC-USDT'] = quote(80, 79, 80);
 	client.getAllMarketTickerStream.mockReturnValue(data);
 	const result = await server.getArbitrageChannelInfo('BTC-USDT');
-	expect(result.arbitrages['BTC-USDT']['Alpha-Beta']).toMatchObject({
-		profitPerUnit: 0,
-		profitPercentage: 0,
-	});
+	expect(result.arbitrages['BTC-USDT']).toEqual({});
 });
 
 test('no or one connected quote retains null arbitrages and a no-data channel message', async () => {
@@ -194,13 +226,13 @@ test('best channel groups one real top-profit result per quote and persists both
 			value.arbitrage.profitPercentage,
 		])
 	).toEqual([
-		['BTC-USDT', 45, 36],
-		['ETH-USD', 20, 20],
+		['BTC-USDT', 45, 56.25],
+		['ETH-USD', 20, 25],
 	]);
 	expect(records[0].marketPrices).toEqual({
 		'BTC-USDT': [
-			{ market: 'Alpha', price: 80 },
-			{ market: 'Beta', price: 125 },
+			{ market: 'Alpha', price: 77, bid: 79, ask: 80 },
+			{ market: 'Beta', price: 130, bid: 125, ask: 126 },
 			{ market: 'Offline', price: 1000, connected: false },
 		],
 	});

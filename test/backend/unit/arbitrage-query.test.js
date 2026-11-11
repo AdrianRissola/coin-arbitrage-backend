@@ -11,7 +11,7 @@ const input = () => ({
 		{ type: 'SELL', market: 'Beta', pair: 'BTC-USDT', price: 125 },
 	],
 	profitPerUnit: 45,
-	profitPercentage: 36,
+	profitPercentage: 56.25,
 	date: now,
 });
 const query = value => {
@@ -48,13 +48,15 @@ test('max-profit selection uses the literal pair/ordered-market query, descendin
 	expect(document).toBeInstanceOf(Arbitrage);
 	expect(document.toObject()).toMatchObject({
 		profitPerUnit: 45,
-		profitPercentage: 36,
+		profitPercentage: 56.25,
 		date: new Date(now),
+		priceBasis: 'bidAsk',
 	});
 	expect(Arbitrage.find).toHaveBeenCalledWith({
 		'transactions.0.pair': 'BTC-USDT',
 		'transactions.0.market': 'Alpha',
 		'transactions.1.market': 'Beta',
+		priceBasis: 'bidAsk',
 	});
 	expect(selected.sort).toHaveBeenCalledWith({ profitPercentage: -1 });
 	expect(selected.limit).toHaveBeenCalledWith(1);
@@ -73,7 +75,7 @@ test('a strictly better incoming profit saves through the real document construc
 	expect(Arbitrage.prototype.save).toHaveBeenCalledTimes(1);
 });
 
-test.each([36, 37, undefined])(
+test.each([56.25, 57, undefined])(
 	'equal/higher/missing existing profit %p suppresses a new save and returns null',
 	async profitPercentage => {
 		Arbitrage.find.mockReturnValue(query([{ profitPercentage }]));
@@ -113,7 +115,10 @@ test.each([[['BTC-USDT', 'ETH-USD']], [[]], [null], [undefined]])(
 		const selected = query(records);
 		Arbitrage.find.mockReturnValue(selected);
 		await expect(service.getByTickerOrderByDateDesc(tickers)).resolves.toBe(records);
-		expect(Arbitrage.find).toHaveBeenCalledWith({ 'transactions.0.pair': { $in: tickers } });
+		expect(Arbitrage.find).toHaveBeenCalledWith({
+			'transactions.0.pair': { $in: tickers },
+			priceBasis: 'bidAsk',
+		});
 		expect(selected.sort).toHaveBeenCalledWith({ date: -1 });
 		expect(selected.limit).not.toHaveBeenCalled();
 	}

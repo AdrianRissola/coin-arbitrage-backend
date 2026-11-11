@@ -14,6 +14,7 @@ const arbitrageSchema = new mongoose.Schema({
 	profitPercentage: Number,
 	profitPerUnit: Number,
 	date: Date,
+	priceBasis: { type: String, select: false },
 });
 
 const Arbitrage = model('Arbitrage', arbitrageSchema);

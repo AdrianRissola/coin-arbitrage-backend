@@ -1,19 +1,12 @@
 const logHelper = require('../logHelper');
 const Arbitrage = require('../model/Arbitrage');
 
-const percentage = (num1, num2) => {
-	const dif = num1 > num2 ? num1 - num2 : num2 - num1;
-	return (100 * dif) / num2;
-};
-
+const isValidQuotePrice = price => typeof price === 'number' && Number.isFinite(price) && price > 0;
 const buyPrice = marketPrice =>
-	marketPrice.ask === null || marketPrice.ask === undefined
-		? marketPrice.price
-		: marketPrice.ask;
+	isValidQuotePrice(marketPrice.ask) ? marketPrice.ask : null;
 const sellPrice = marketPrice =>
-	marketPrice.bid === null || marketPrice.bid === undefined
-		? marketPrice.price
-		: marketPrice.bid;
+	isValidQuotePrice(marketPrice.bid) ? marketPrice.bid : null;
+const percentage = (buyAsk, sellBid) => (100 * (sellBid - buyAsk)) / buyAsk;
 
 const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 	transactions: [
@@ -35,7 +28,7 @@ const buildArbitrage = (marketPriceI, marketPriceJ) => ({
 	date: new Date(),
 });
 
-const priceComparator = (priceA, priceB) => priceA < priceB;
+const priceComparator = (buyAsk, sellBid) => buyAsk < sellBid;
 
 const calculateArbitrages = (
 	marketPrices,
@@ -48,36 +41,43 @@ const calculateArbitrages = (
 	let arbitrages = null;
 	const ticker = marketPrices && marketPrices[0] ? marketPrices[0].ticker : null;
 	if (marketPrices && marketPrices.length > 1) {
-		const sortedList = marketPrices.sort((e1, e2) => buyPrice(e1) - buyPrice(e2));
+		const sortedList = marketPrices.sort(
+			(e1, e2) => (buyPrice(e1) ?? Infinity) - (buyPrice(e2) ?? Infinity)
+		);
+		const buyMarkets = sortedList.filter(marketPrice => buyPrice(marketPrice) !== null);
+		const sellMarkets = sortedList.filter(marketPrice => sellPrice(marketPrice) !== null);
 
 		arbitrages = [];
 		if (top === 1) {
 			let best = null;
-			for (let i = 0; i < sortedList.length; i += 1) {
-				for (let j = i + 1; j < sortedList.length; j += 1) {
-					const profit = sellPrice(sortedList[j]) - buyPrice(sortedList[i]);
+			buyMarkets.forEach(buyMarket => {
+				sellMarkets.forEach(sellMarket => {
+					if (buyMarket.platform === sellMarket.platform) return;
+					const buyAsk = buyPrice(buyMarket);
+					const sellBid = sellPrice(sellMarket);
+					const profit = sellBid - buyAsk;
 					if (profit > 0 && (!best || profit > best.profitPerUnit))
-						best = buildArbitrage(sortedList[i], sortedList[j]);
-				}
-			}
+						best = buildArbitrage(buyMarket, sellMarket);
+				});
+			});
 			if (best) {
 				arbitrages.push(best);
 				logHelper.logArbitrage(arbitrages[0]);
 			}
 		} else {
-			for (let i = 0; i < sortedList.length; i += 1) {
-				for (let j = i + 1; j < sortedList.length; j += 1) {
-					const profitPercentage = percentage(
-						buyPrice(sortedList[i]),
-						sellPrice(sortedList[j])
-					);
+			buyMarkets.forEach(buyMarket => {
+				sellMarkets.forEach(sellMarket => {
+					if (buyMarket.platform === sellMarket.platform) return;
+					const buyAsk = buyPrice(buyMarket);
+					const sellBid = sellPrice(sellMarket);
+					if (sellBid <= buyAsk || !currentPriceComparator(buyAsk, sellBid)) return;
+					const profitPercentage = percentage(buyAsk, sellBid);
 					if (
-						(!minProfitPercentage || profitPercentage >= minProfitPercentage) &&
-						currentPriceComparator(buyPrice(sortedList[i]), sellPrice(sortedList[j]))
+						!minProfitPercentage || profitPercentage >= minProfitPercentage
 					)
-						arbitrages.push(buildArbitrage(sortedList[i], sortedList[j]));
-				}
-			}
+						arbitrages.push(buildArbitrage(buyMarket, sellMarket));
+				});
+			});
 			arbitrages = arbitrages.sort((e1, e2) => e2.profitPerUnit - e1.profitPerUnit);
 		}
 		if (top > 1) arbitrages = arbitrages.slice(0, top);
@@ -88,7 +88,7 @@ const calculateArbitrages = (
 };
 
 const save = async arbitrage => {
-	const newArbitrage = new Arbitrage(arbitrage);
+	const newArbitrage = new Arbitrage({ ...arbitrage, priceBasis: 'bidAsk' });
 	const newArbitrageSaved = await newArbitrage
 		.save()
 		.then(arbit => arbit)
@@ -104,6 +104,7 @@ const saveMaxProfitArbitrageByTicker = async arbitrage => {
 		'transactions.0.pair': arbitrage.transactions[0].pair,
 		'transactions.0.market': arbitrage.transactions[0].market,
 		'transactions.1.market': arbitrage.transactions[1].market,
+		priceBasis: 'bidAsk',
 	};
 	const maxProfitArbitrageList = await Arbitrage.find(findArbitrageByPairAndMarketsQuery)
 		.sort({ profitPercentage: -1 })
@@ -120,6 +121,7 @@ const saveMaxProfitArbitrageByTicker = async arbitrage => {
 const getByTickerOrderByDateDesc = async tickers => {
 	const findArbitrageByPair = {
 		'transactions.0.pair': { $in: tickers },
+		priceBasis: 'bidAsk',
 	};
 	const arbitrageList = await Arbitrage.find(findArbitrageByPair).sort({ date: -1 });
 	console.log(

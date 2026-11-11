@@ -4,10 +4,15 @@ const { calculateArbitrages } = require('../../../service/arbitrageService');
 const prices = require('../../fixtures/contracts/v1/market-prices.json');
 const expected = require('../../fixtures/contracts/v1/arbitrages.json');
 
-const inputs = () => prices['BTC-USDT'].map(price => ({ ...price }));
+const inputs = () =>
+	prices['BTC-USDT'].map(marketPrice => ({
+		...marketPrice,
+		bid: marketPrice.price,
+		ask: marketPrice.price,
+	}));
 const pair = (buy, sell) => [
-	{ platform: 'Alpha', ticker: 'BTC-USDT', price: buy },
-	{ platform: 'Beta', ticker: 'BTC-USDT', price: sell },
+	{ platform: 'Alpha', ticker: 'BTC-USDT', price: buy, bid: buy, ask: buy },
+	{ platform: 'Beta', ticker: 'BTC-USDT', price: sell, bid: sell, ask: sell },
 ];
 
 beforeEach(() => {
@@ -38,10 +43,10 @@ test.each([[undefined], [null], [[]], [[prices['BTC-USDT'][0]]]])(
 test.each([
 	[undefined, [45, 25, 20]],
 	[0, [45, 25, 20]],
-	[20, [45, 25, 20]],
-	[20.001, [45]],
-	[36, [45]],
-	[36.001, []],
+	[25, [45, 25, 20]],
+	[25.001, [45]],
+	[56.25, [45]],
+	[56.251, []],
 ])('minimum percentage %s keeps exact inclusive boundaries', (minimum, profits) => {
 	expect(calculateArbitrages(inputs(), minimum).map(value => value.profitPerUnit)).toEqual(
 		profits
@@ -75,9 +80,43 @@ test('the default comparator excludes equal prices', () => {
 	expect(calculateArbitrages(pair(100, 100))).toEqual([]);
 });
 
-test('a stream-style comparator includes equal-price zero-profit transactions', () => {
+test('equal Ask and Bid prices are never an arbitrage, even if a comparator allows equality', () => {
 	const result = calculateArbitrages(pair(100, 100), 0, undefined, undefined, (a, b) => a <= b);
-	expect(result.map(value => [value.profitPerUnit, value.profitPercentage])).toEqual([[0, 0]]);
+	expect(result).toEqual([]);
+});
+
+test('last-only quotes cannot create arbitrage', () => {
+	expect(
+		calculateArbitrages([
+			{ platform: 'Alpha', ticker: 'BTC-USDT', price: 80, last: 80 },
+			{ platform: 'Beta', ticker: 'BTC-USDT', price: 100, last: 100 },
+		])
+	).toEqual([]);
+});
+
+test('a missing bid cannot fall back to Last for a sell transaction', () => {
+	expect(
+		calculateArbitrages([
+			{ platform: 'Alpha', ticker: 'BTC-USDT', ask: 100, last: 99, price: 99 },
+			{ platform: 'Beta', ticker: 'BTC-USDT', ask: 101, last: 110, price: 110 },
+		])
+	).toEqual([]);
+});
+
+test('one-sided quotes use Ask to buy and Bid to sell, with profit relative to the Ask', () => {
+	const [result] = calculateArbitrages(
+		[
+			{ platform: 'Alpha', ticker: 'BTC-USDT', ask: 100, last: 75, price: 75 },
+			{ platform: 'Beta', ticker: 'BTC-USDT', bid: 105, last: 130, price: 130 },
+		],
+		undefined,
+		1
+	);
+	expect(result.transactions.map(({ type, market, price }) => [type, market, price])).toEqual([
+		['BUY', 'Alpha', 100],
+		['SELL', 'Beta', 105],
+	]);
+	expect([result.profitPerUnit, result.profitPercentage]).toEqual([5, 5]);
 });
 
 test('the formatter receives actual results and the input ticker', () => {
@@ -107,9 +146,8 @@ test('calculation currently sorts the caller input in place', () => {
 	expect(input.map(value => value.price)).toEqual([80, 100, 125]);
 });
 
-test('a zero buy price is not rejected as invalid financial input', () => {
-	const [result] = calculateArbitrages(pair(0, 100));
-	expect([result.profitPerUnit, result.profitPercentage]).toEqual([100, 100]);
+test('zero is not accepted as a valid Ask or Bid', () => {
+	expect(calculateArbitrages(pair(0, 100))).toEqual([]);
 });
 
 test('top one emits nothing when no profitable pair exists', () => {
@@ -117,9 +155,8 @@ test('top one emits nothing when no profitable pair exists', () => {
 	expect(calculateArbitrages(pair(100, 100), undefined, 1)).toEqual([]);
 });
 
-test('negative sell prices retain their negative percentage denominator', () => {
-	const [result] = calculateArbitrages(pair(-100, -80));
-	expect([result.profitPerUnit, result.profitPercentage]).toEqual([20, -25]);
+test('negative Ask and Bid prices are rejected as invalid quotes', () => {
+	expect(calculateArbitrages(pair(-100, -80))).toEqual([]);
 });
 
 test('string prices still encounter the current lexicographic comparator', () => {

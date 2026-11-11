@@ -42,7 +42,7 @@ test('real handler, exchange parser, DTO/calculation and service serialize the s
 	await app.clock.run(timer);
 	expect(normaliseDates(await response)).toEqual(arbitrage);
 	expect(app.saved).toHaveLength(1);
-	expect(app.saved[0].document.profitPercentage).toBe(36);
+	expect(app.saved[0].document.profitPercentage).toBe(56.25);
 });
 test('lowercase ticker is echoed while actual pair keys and financial transactions are uppercase', async () => {
 	const app = await loadWire();
@@ -155,8 +155,8 @@ test('best per quote uses real services and save triggers through native seriali
 			record.arbitrage.profitPercentage,
 		])
 	).toEqual([
-		['BTC-USDT', 45, 36],
-		['ETH-USD', 20, 20],
+		['BTC-USDT', 45, 56.25],
+		['ETH-USD', 30, 60],
 	]);
 });
 test('empty best frames preserve the native subscription and later data resumes', async () => {
@@ -197,8 +197,8 @@ test('errors drop stale opportunities until fresh quotes recover on the same sub
 	expect((await empty).bestArbitrages.arbitragesData).toEqual([]);
 	expect(app.saved).toHaveLength(0);
 	expect(app.clock.intervals.has(timer)).toBe(true);
-	await deliver(sockets[0], { symbol: 'BTC-USDT', price: 80 });
-	await deliver(sockets[1], { symbol: 'BTC-USDT', price: 100 });
+	await deliver(sockets[0], { symbol: 'BTC-USDT', price: 80, bid: 79, ask: 80 });
+	await deliver(sockets[1], { symbol: 'BTC-USDT', price: 100, bid: 100, ask: 100 });
 	app.planSave('Arbitrage');
 	const recovered = consumer.next();
 	await app.clock.run(timer);

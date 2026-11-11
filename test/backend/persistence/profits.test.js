@@ -16,6 +16,14 @@ beforeAll(async () => {
 			_id: '000000000000000000000103',
 			...opportunity(15, 'ETH-USD', 'HistoryA', 'HistoryB', '2024-01-02T00:00:00.000Z'),
 		},
+		{
+			_id: '000000000000000000000104',
+			...Object.fromEntries(
+				Object.entries(
+					opportunity(99, 'BTC-USDT', 'HistoryA', 'HistoryB', '2024-01-04T00:00:00.000Z')
+				).filter(([key]) => key !== 'priceBasis')
+			),
+		},
 	]);
 	service = jest.requireActual('../../../service/arbitrageService');
 });
@@ -58,6 +66,31 @@ test('first/better/equal/worse decisions are based on the actual persisted maxim
 			})
 		).map(record => record.profitPercentage)
 	).toEqual([20, 10]);
+});
+test('legacy Last-based maximum records neither block saves nor appear in side-aware history', async () => {
+	const legacyRecord = opportunity(99, 'BTC-USDT', 'LegacyBuy', 'LegacySell');
+	delete legacyRecord.priceBasis;
+	await context.Arbitrage.create(legacyRecord);
+
+	const saved = await service.saveMaxProfitArbitrageByTicker(
+		opportunity(10, 'BTC-USDT', 'LegacyBuy', 'LegacySell')
+	);
+	expect(saved.priceBasis).toBe('bidAsk');
+	expect(
+		(await service.getByTickerOrderByDateDesc(['BTC-USDT'])).some(
+			record => record.transactions[0].market === 'LegacyBuy'
+		)
+	).toBe(true);
+	const matching = await context.Arbitrage.find({
+		'transactions.0.market': 'LegacyBuy',
+		'transactions.0.pair': 'BTC-USDT',
+	})
+		.select('+priceBasis')
+		.sort({ profitPercentage: -1 });
+	expect(matching.map(record => [record.profitPercentage, record.priceBasis])).toEqual([
+		[99, undefined],
+		[10, 'bidAsk'],
+	]);
 });
 test('ticker and ordered buy/sell identity separate actual stored record opportunities', async () => {
 	const ticker = await service.saveMaxProfitArbitrageByTicker(opportunity(12, 'ETH-USD'));

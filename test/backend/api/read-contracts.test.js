@@ -51,6 +51,7 @@ test.each([
 		expect(response.body).toEqual(history);
 		expect(context.Arbitrage.find).toHaveBeenCalledWith({
 			'transactions.0.pair': { $in: value },
+			priceBasis: 'bidAsk',
 		});
 		expect(context.historySort).toHaveBeenCalledWith({ date: -1 });
 	}

@@ -25,7 +25,7 @@ const formatResponse = (arbitrages, ticker) => {
 	return ticketToArbitrages;
 };
 
-const priceComparator = (priceA, priceB) => priceA <= priceB;
+const priceComparator = (buyAsk, sellBid) => buyAsk < sellBid;
 
 exports.getMarketStatus = async () => {
 	const websocketConnections = marketWebSocketClient.getWebSocketConnections();
@@ -51,13 +51,13 @@ const getAllArbitrages = async filters => {
 				const ttl = allMarketTickersStream[host].data.market.com?.api?.websocket?.quoteTtlMs;
 				if (
 					stored &&
+					(quote.bid || quote.ask) &&
 					(!ttl || !quote.timestamp || Date.now() - quote.timestamp <= ttl)
 				)
 					marketPrices.push({
 						platform: allMarketTickersStream[host].data.market.name,
 						bid: quote.bid,
 						ask: quote.ask,
-						price: quote.last !== null && quote.last !== undefined ? quote.last : quote.price,
 						ticker: filters.ticker.toUpperCase(),
 					});
 			}
