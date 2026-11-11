@@ -50,11 +50,13 @@ test('max-profit selection uses the literal pair/ordered-market query, descendin
 		profitPerUnit: 45,
 		profitPercentage: 36,
 		date: new Date(now),
+		priceBasis: 'bidAsk',
 	});
 	expect(Arbitrage.find).toHaveBeenCalledWith({
 		'transactions.0.pair': 'BTC-USDT',
 		'transactions.0.market': 'Alpha',
 		'transactions.1.market': 'Beta',
+		priceBasis: 'bidAsk',
 	});
 	expect(selected.sort).toHaveBeenCalledWith({ profitPercentage: -1 });
 	expect(selected.limit).toHaveBeenCalledWith(1);
@@ -113,7 +115,10 @@ test.each([[['BTC-USDT', 'ETH-USD']], [[]], [null], [undefined]])(
 		const selected = query(records);
 		Arbitrage.find.mockReturnValue(selected);
 		await expect(service.getByTickerOrderByDateDesc(tickers)).resolves.toBe(records);
-		expect(Arbitrage.find).toHaveBeenCalledWith({ 'transactions.0.pair': { $in: tickers } });
+		expect(Arbitrage.find).toHaveBeenCalledWith({
+			'transactions.0.pair': { $in: tickers },
+			priceBasis: 'bidAsk',
+		});
 		expect(selected.sort).toHaveBeenCalledWith({ date: -1 });
 		expect(selected.limit).not.toHaveBeenCalled();
 	}

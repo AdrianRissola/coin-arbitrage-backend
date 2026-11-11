@@ -42,6 +42,24 @@ test('stream DTO omits numeric zero but retains string zero', () => {
 	).toEqual([{ market: 'Beta', price: '0' }]);
 });
 
+test('Last stays null when only Bid and Ask are available', () => {
+	expect(
+		dto.toMarketPricesStreamDto(
+			{
+				alpha: {
+					data: {
+						market: { name: 'Alpha' },
+						tickerPrices: {
+							'BTC-USDT': { last: null, bid: 80, ask: 81 },
+						},
+					},
+				},
+			},
+			'BTC-USDT'
+		)
+	).toEqual([{ market: 'Alpha', price: null, bid: 80, ask: 81 }]);
+});
+
 test('connection DTO removes configuration but preserves false/closed state', () => {
 	expect(
 		dto.toConnectionsDto({

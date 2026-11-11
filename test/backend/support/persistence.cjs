@@ -156,6 +156,7 @@ const opportunity = (
 	profitPerUnit: percentage,
 	profitPercentage: percentage,
 	date,
+	priceBasis: 'bidAsk',
 });
 
 module.exports = { makePersistence, opportunity };

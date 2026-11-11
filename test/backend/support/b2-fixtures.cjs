@@ -35,6 +35,8 @@ const market = (name = 'Alpha') => ({
 				base: `https://${name.toLowerCase()}.invalid/`,
 				tickerPath: `ticker/\${ticker}`,
 				pathToPrice: ['data', 'price'],
+				pathToBidPrice: ['data', 'bid'],
+				pathToAskPrice: ['data', 'ask'],
 				tickerPattern: {
 					separator: '-',
 					baseCurrencyCaseFunction: 'toUpperCase',

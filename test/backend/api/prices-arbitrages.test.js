@@ -5,7 +5,9 @@ const { clone, now } = require('../support/b2-fixtures.cjs');
 
 const base = '/coin-arbitrage/crypto';
 const plans = (values = [80, 100, 125]) =>
-	values.map(price => ({ data: { price: String(price) } }));
+	values.map(price => ({
+		data: { price: String(price), bid: String(price), ask: String(price) },
+	}));
 const normalized = rows =>
 	rows.map(row => {
 		expect(row.date).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
@@ -16,7 +18,7 @@ const normalized = rows =>
 test('GET single market ticker uses case-insensitive lookup and real raw Axios response data', async () => {
 	const context = await loadHttpApp({ exchange: plans([80]) });
 	const response = await context.api.get(`${base}/markets/alpha/tickers/btc-usdt`).expect(200);
-	expect(response.body).toEqual({ price: '80' });
+	expect(response.body).toEqual({ price: '80', bid: '80', ask: '80' });
 	expect(context.transport.calls).toEqual([
 		{ method: 'get', url: 'https://alpha.invalid/ticker/BTC-USDT' },
 	]);
@@ -41,9 +43,9 @@ test('GET all market tickers maps real adapter bodies by their market names', as
 	const context = await loadHttpApp({ exchange: plans() });
 	const response = await context.api.get(`${base}/markets/btc-usdt`).expect(200);
 	expect(response.body).toEqual({
-		Alpha: { price: '80' },
-		Beta: { price: '100' },
-		Gamma: { price: '125' },
+		Alpha: { price: '80', bid: '80', ask: '80' },
+		Beta: { price: '100', bid: '100', ask: '100' },
+		Gamma: { price: '125', bid: '125', ask: '125' },
 	});
 });
 
@@ -51,9 +53,9 @@ test('GET all prices sorts numeric values and exposes current native ticker fiel
 	const context = await loadHttpApp({ exchange: plans([125, 80, 100]) });
 	const response = await context.api.get(`${base}/markets/tickers/btc-usdt/prices`).expect(200);
 	expect(normalized(response.body)).toEqual([
-		{ platform: 'Beta', ticker: 'BTC-USDT', price: 80, date: now },
-		{ platform: 'Gamma', ticker: 'BTC-USDT', price: 100, date: now },
-		{ platform: 'Alpha', ticker: 'BTC-USDT', price: 125, date: now },
+		{ platform: 'Beta', ticker: 'BTC-USDT', price: 80, bid: 80, ask: 80, date: now },
+		{ platform: 'Gamma', ticker: 'BTC-USDT', price: 100, bid: 100, ask: 100, date: now },
+		{ platform: 'Alpha', ticker: 'BTC-USDT', price: 125, bid: 125, ask: 125, date: now },
 	]);
 });
 
@@ -79,6 +81,17 @@ test.each(['BTC-USDT', 'BTC-USD'])(
 		expect(normalized(response.body)).toEqual(expected);
 	}
 );
+
+test('GET current arbitrages ignores Last-only prices when no Ask/Bid quotes are returned', async () => {
+	const context = await loadHttpApp({
+		exchange: [80, 100, 125].map(price => ({ data: { price: String(price) } })),
+	});
+	const response = await context.api
+		.get(`${base}/current-arbitrages`)
+		.query({ ticker: 'BTC-USDT' })
+		.expect(200);
+	expect(response.body).toEqual([]);
+});
 
 test('GET current requested subset retains actual market inclusion and complete financial answer', async () => {
 	const context = await loadHttpApp({ exchange: plans([80, 125]) });

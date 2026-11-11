@@ -99,6 +99,8 @@ const exchangeMarket = (name = 'Alpha', overrides = {}) => ({
 				tickerRequest: `{"symbol":"\${ticker}"}`,
 				tickers: ['BTC-USDT', 'ETH-USD'],
 				pathToPrice: ['price'],
+				pathToBidPrice: ['bid'],
+				pathToAskPrice: ['ask'],
 				pathToTicker: ['symbol'],
 				pathToSubscriptionId: [],
 				tickerPattern: {

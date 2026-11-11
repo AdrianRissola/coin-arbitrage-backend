@@ -96,9 +96,18 @@ const loadWire = async () => {
 	const feed = async () => {
 		if (!transport.clients.length) throw new Error('No actual exchange open requested');
 		const prices = {
-			'alpha.invalid': { 'BTC-USDT': 80, 'ETH-USD': 80 },
-			'beta.invalid': { 'BTC-USDT': 100, 'ETH-USD': 100 },
-			'gamma.invalid': { 'BTC-USDT': 125, 'ETH-USD': 90 },
+			'alpha.invalid': {
+				'BTC-USDT': { price: 77, bid: 79, ask: 80 },
+				'ETH-USD': { price: 48, bid: 49, ask: 50 },
+			},
+			'beta.invalid': {
+				'BTC-USDT': { price: 105, bid: 100, ask: 100 },
+				'ETH-USD': { price: 62, bid: 59, ask: 60 },
+			},
+			'gamma.invalid': {
+				'BTC-USDT': { price: 130, bid: 125, ask: 126 },
+				'ETH-USD': { price: 78, bid: 80, ask: 81 },
+			},
 		};
 		await Promise.all(
 			transport.clients.map(async client => {
@@ -106,8 +115,8 @@ const loadWire = async () => {
 				const socket = connection(host);
 				client.emit('connect', socket);
 				await Promise.all(
-					Object.entries(prices[host]).map(([symbol, price]) =>
-						deliver(socket, { symbol, price })
+					Object.entries(prices[host]).map(([symbol, quote]) =>
+						deliver(socket, { symbol, ...quote })
 					)
 				);
 			})
