@@ -121,6 +121,9 @@ const loadModule = () => {
 			getAppTicker: (market, api, ticker) => ticker,
 			isAvailablePairCurrencyByMarket: () => true,
 		},
+		'./protobufDecoder': {
+			decodeAggreBookTicker: () => ({}),
+		},
 		'./logger': {
 			logDataByHost: () => {},
 		},

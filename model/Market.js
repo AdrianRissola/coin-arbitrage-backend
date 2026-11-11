@@ -68,6 +68,10 @@ const websocketSchema = new mongoose.Schema({
 	tickers: [],
 	tickerPattern: tickerPatternSchema,
 	pathToPrice: [],
+	pathToBidPrice: [],
+	pathToAskPrice: [],
+	pathToTimestamp: [],
+	quoteTtlMs: Number,
 	pathToSubscriptionId: [],
 	pathToTicker: [],
 	tickerTextPattern: String,
@@ -82,6 +86,10 @@ const restSchema = new mongoose.Schema({
 	tickerPattern: tickerPatternSchema,
 	tickerPath: String,
 	pathToPrice: [],
+	pathToBidPrice: [],
+	pathToAskPrice: [],
+	pathToTimestamp: [],
+	quoteTtlMs: Number,
 	tickers: [],
 });
 

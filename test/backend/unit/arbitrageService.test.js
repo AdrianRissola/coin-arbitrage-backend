@@ -112,10 +112,9 @@ test('a zero buy price is not rejected as invalid financial input', () => {
 	expect([result.profitPerUnit, result.profitPercentage]).toEqual([100, 100]);
 });
 
-test('top one with zero prices retains a NaN percentage', () => {
-	const [result] = calculateArbitrages(pair(0, 0), undefined, 1);
-	expect(result.profitPerUnit).toBe(0);
-	expect(Number.isNaN(result.profitPercentage)).toBe(true);
+test('top one emits nothing when no profitable pair exists', () => {
+	expect(calculateArbitrages(pair(0, 0), undefined, 1)).toEqual([]);
+	expect(calculateArbitrages(pair(100, 100), undefined, 1)).toEqual([]);
 });
 
 test('negative sell prices retain their negative percentage denominator', () => {

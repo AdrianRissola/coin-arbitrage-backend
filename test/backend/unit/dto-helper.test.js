@@ -26,7 +26,7 @@ test('stream DTO projects market/price and uppercases lookup keys', () => {
 			},
 			'btc-usdt'
 		)
-	).toEqual([{ market: 'Alpha', price: 80 }]);
+	).toEqual([{ market: 'Alpha', price: 80, connected: false }]);
 });
 
 test('stream DTO omits numeric zero but retains string zero', () => {

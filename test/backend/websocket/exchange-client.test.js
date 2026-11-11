@@ -10,6 +10,7 @@ const { now } = require('../support/b2-fixtures.cjs');
 let clock;
 let context;
 let market;
+const quote = last => ({ bid: null, ask: null, last, timestamp: Date.now() });
 const open = async (overrides = {}, tickers = ['BTC-USDT']) => {
 	market = exchangeMarket('Alpha', overrides);
 	context.manager.setMarketsFromDB([market]);
@@ -70,7 +71,7 @@ test.each(['utf8', 'binary'])(
 			connected: true,
 			data: {
 				ticker: 'BTC-USDT',
-				tickerPrices: { 'BTC-USDT': 80.5 },
+				tickerPrices: { 'BTC-USDT': quote(80.5) },
 				price: 80.5,
 				timestamp: new Date(now),
 			},
@@ -121,7 +122,7 @@ test('subscription-ID acknowledgements retain independent ticker-price associati
 	await deliver(socket, { id: 7, price: 81 });
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data).toMatchObject({
 		ticker: 'ETH-USD',
-		tickerPrices: { 'BTC-USDT': 81, 'ETH-USD': 100 },
+		tickerPrices: { 'BTC-USDT': quote(81), 'ETH-USD': quote(100) },
 		subscriptionId: { 7: 'BTC-USDT', 9: 'ETH-USD' },
 	});
 	expect(context.clients).toHaveLength(1);
@@ -151,8 +152,8 @@ test.each(['utf8', 'binary'])(
 		expect(
 			context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices
 		).toEqual({
-			'BTC-USDT': 82,
-			'ETH-USD': 101,
+			'BTC-USDT': quote(82),
+			'ETH-USD': quote(101),
 		});
 	}
 );
@@ -166,8 +167,8 @@ test('additional ID requests wait for the outstanding subscription confirmation'
 	expect(socket.sent).toEqual(['{"symbol":"BTC-USDT"}', '{"symbol":"ETH-USD"}']);
 	await deliver(socket, { id: 9, price: 100 });
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices).toEqual({
-		'BTC-USDT': 80,
-		'ETH-USD': 100,
+		'BTC-USDT': quote(80),
+		'ETH-USD': quote(100),
 	});
 });
 test.each([[['LTC-USDT', 'BTC-USDT', 'ETH-USD']], [['BTC-USDT', 'LTC-USDT', 'ETH-USD']]])(
@@ -210,7 +211,7 @@ test('reconnect retries the unconfirmed ID request and resets old connection ID 
 	await deliver(second, { id: 7, price: 100 });
 	expect(second.sent).toEqual(['{"symbol":"ETH-USD"}', '{"symbol":"BTC-USDT"}']);
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices).toEqual({
-		'ETH-USD': 100,
+		'ETH-USD': quote(100),
 	});
 });
 test('explicit close-all discards abandoned ID requests before a fresh connection', async () => {
@@ -286,7 +287,7 @@ test('error invalidates every cached ticker and recovery restores only fresh quo
 	await deliver(socket, { symbol: 'BTC-USDT', price: 100 });
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid']).toMatchObject({
 		connected: true,
-		data: { tickerPrices: { 'BTC-USDT': 100 } },
+		data: { tickerPrices: { 'BTC-USDT': quote(100) } },
 	});
 	expect(context.module.getMarketTickerStream(null, 'ETH-USD')).toEqual({});
 });
@@ -312,7 +313,7 @@ test('an unattributable price cannot overwrite the requested ticker quote', asyn
 	expect(context.module.getAllMarketTickerStream()['alpha.invalid'].data).toMatchObject({
 		ticker: 'BTC-USDT',
 		price: 80,
-		tickerPrices: { 'BTC-USDT': 80 },
+		tickerPrices: { 'BTC-USDT': quote(80) },
 	});
 	expect(
 		context.module.getAllMarketTickerStream()['alpha.invalid'].data.tickerPrices.null

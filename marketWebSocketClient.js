@@ -4,6 +4,7 @@ const marketApiResponseHandler = require('./marketApiResponseHandler');
 const dtoConverter = require('./dtoConverter');
 const logHelper = require('./logHelper');
 const marketHelper = require('./marketHelper');
+const protobufDecoder = require('./protobufDecoder');
 const logger = require('./logger');
 
 const RECONNECT_DELAY_IN_MS = 30000;
@@ -121,19 +122,37 @@ const putSubscriptionId = (connection, market, messageResponse) => {
 	return false;
 };
 
-const getPrice = (market, messageResponse, appTicker) =>
-	marketApiResponseHandler.extractNumberFromTarget(
-		market.com.api.websocket.pathToPrice,
-		messageResponse,
-		{
-			marketTickerName: marketHelper.getMarketPairCurrency(
-				market,
-				'websocket',
-				appTicker || market.tickerRequest.toUpperCase()
-			),
-			valueType: 'number',
-		}
-	);
+const extractSide = (path, market, messageResponse, appTicker) => {
+	if (!path || path.length === 0) return null;
+	try {
+		const value = marketApiResponseHandler.extractNumberFromTarget(
+			path,
+			messageResponse,
+			{
+				marketTickerName: marketHelper.getMarketPairCurrency(
+					market,
+					'websocket',
+					appTicker || market.tickerRequest.toUpperCase()
+				),
+				valueType: 'number',
+			}
+		);
+		return typeof value === 'number' && !Number.isNaN(value) && value > 0 ? value : null;
+	} catch (error) {
+		return null;
+	}
+};
+
+const getQuote = (market, messageResponse, appTicker) => {
+	const { websocket } = market.com.api;
+	const eventTime = extractSide(websocket.pathToTimestamp, market, messageResponse, appTicker);
+	return {
+		bid: extractSide(websocket.pathToBidPrice, market, messageResponse, appTicker),
+		ask: extractSide(websocket.pathToAskPrice, market, messageResponse, appTicker),
+		last: extractSide(websocket.pathToPrice, market, messageResponse, appTicker),
+		timestamp: eventTime || Date.now(),
+	};
+};
 
 const getAppTicker = (market, messageResponse) => {
 	let appTicker = null;
@@ -170,16 +189,13 @@ const invalidateTickerQuote = (host, appTicker) => {
 const putMessage = (connection, rawMessage, parsedMessage, market) => {
 	const appTicker = getAppTicker(market, parsedMessage);
 	const host = connection.socket.servername;
-	let price = null;
-	try {
-		price = getPrice(market, parsedMessage, appTicker);
-	} catch (error) {
-		if (appTicker) invalidateTickerQuote(host, appTicker);
-		return;
-	}
+	const quote = getQuote(market, parsedMessage, appTicker);
 	const subscriptionId = getSubscriptionId(market, parsedMessage);
 
-	if (!price || !marketHelper.isAvailablePairCurrencyByMarket(parsedMessage, market)) {
+	if (
+		(!quote.bid && !quote.ask && !quote.last) ||
+		!marketHelper.isAvailablePairCurrencyByMarket(parsedMessage, market)
+	) {
 		if (appTicker) invalidateTickerQuote(host, appTicker);
 		return;
 	}
@@ -197,11 +213,12 @@ const putMessage = (connection, rawMessage, parsedMessage, market) => {
 			appTicker || marketHostToSubscriptionId[host]?.[subscriptionId];
 	const { tickerPrices } = marketHostToMessage[connection.socket.servername].data;
 	if (!tickerPrices) marketHostToMessage[connection.socket.servername].data.tickerPrices = {};
-	marketHostToMessage[connection.socket.servername].data.tickerPrices[appTicker] = price;
+	marketHostToMessage[connection.socket.servername].data.tickerPrices[appTicker] = quote;
 	marketHostToMessage[connection.socket.servername].data.ticker =
 		connection.currentTickerSubscription;
 	marketHostToMessage[connection.socket.servername].data.marketTicker = parsedMessage;
-	marketHostToMessage[connection.socket.servername].data.price = price;
+	marketHostToMessage[connection.socket.servername].data.price =
+		quote.last || quote.ask || quote.bid;
 	marketHostToMessage[connection.socket.servername].data.timestamp = new Date();
 	const stream = marketHostToMessage[connection.socket.servername];
 	if (!marketHostToTickerStreams[connection.socket.servername])
@@ -294,7 +311,9 @@ const handleConnection = (connection, market) => {
 
 			if (message.type === 'binary') {
 				const buffer = Buffer.from(message.binaryData);
-				parsedMessage = JSON.parse(buffer.toString());
+				parsedMessage = market.com.api.websocket.protobuf
+					? protobufDecoder.decodeAggreBookTicker(buffer)
+					: JSON.parse(buffer.toString());
 			}
 
 			const foundMmarket = marketsDBmanager.getMarketByWebsocketHost(

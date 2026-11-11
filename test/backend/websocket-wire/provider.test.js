@@ -8,6 +8,10 @@ const normaliseDates = value => {
 	if (!value || typeof value !== 'object') return value;
 	return Object.fromEntries(
 		Object.entries(value).map(([key, child]) => {
+			if (key === 'timestamp') {
+				expect(child).toEqual(expect.any(Number));
+				return [key, 0];
+			}
 			if (key !== 'date') return [key, normaliseDates(child)];
 			expect(child).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 			return [key, '2024-01-02T03:04:05.000Z'];
